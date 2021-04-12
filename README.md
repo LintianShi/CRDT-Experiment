@@ -1,3 +1,6 @@
+# Experiment on CRDT-Redis
+以完全黑盒的方式获取CRDT-Redis执行的trace，利用框架中的workload生成。
+
 # Conflict-Free Replicated Data Types Based on Redis
 
 Several Conflict-Free Replicated Data Types (CRDTs) implemented based on Redis(6.0.5).

@@ -29,6 +29,7 @@ public:
     {
         add_args(element, value);
         pq.write_op_generated++;
+        pq.add(element, value);
     }
 
     void handle_redis_return(const redisReply_ptr &r) override { pq.add(element, value); }
@@ -45,6 +46,7 @@ public:
     {
         add_args(element, value);
         pq.write_op_generated++;
+        pq.inc(element, value);
     }
 
     void handle_redis_return(const redisReply_ptr &r) override { pq.inc(element, value); }
@@ -60,6 +62,7 @@ public:
     {
         add_args(element);
         pq.write_op_generated++;
+        pq.rem(element);
     }
 
     void handle_redis_return(const redisReply_ptr &r) override { pq.rem(element); }

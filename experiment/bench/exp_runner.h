@@ -55,10 +55,11 @@ private:
                 auto start_time = chrono::steady_clock::now();
                 for (int t = 1; RUN_CONDITION; ++t)
                 {
-                    gen.gen_and_exec(c);
+                    trace.insert(gen.gen_and_exec(c));
                     auto tar_time = start_time + chrono::duration<double>(t * INTERVAL_TIME);
                     this_thread::sleep_until(tar_time);
                 }
+                trace.write_logfile();
             });
         }
     }

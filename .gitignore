@@ -12,6 +12,7 @@ compile_commands.json
 *.lnk
 .clangd
 .cache
+*.trc
 
 bench_start
 ozlog

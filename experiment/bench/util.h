@@ -38,6 +38,8 @@
 #define MAX_TIME_COLISION exp_setting::delay
 constexpr int SPLIT_NUM = 10;
 #define SLP_TIME_MICRO (MAX_TIME_COLISION * 1000 / SPLIT_NUM)
+extern int trace_signature;
+extern string trace_dir;
 
 using namespace std;
 
@@ -248,7 +250,7 @@ protected:
     }
 
 public:
-    virtual struct invocation gen_and_exec(redis_client &c) = 0;
+    virtual struct invocation* gen_and_exec(redis_client &c) = 0;
 };
 
 class rdt_log
@@ -453,11 +455,30 @@ struct invocation
 class exec_trace
 { 
 private:
-    vector<invocation> log;
+    vector<invocation*> log;
 public:
-    void insert(invocation inv) {
+    exec_trace() {
+        //cout<<"create\n";
+        if (trace_signature == -1) 
+        {
+            time_t myt = time(NULL);
+            trace_dir += to_string(myt);
+            trace_signature = 0;
+            mkdir(trace_dir.c_str(), S_IRWXU | S_IRGRP | S_IROTH);
+        }
+    }
+
+    void insert(invocation* inv) {
         log.push_back(inv);
-    };
+    }
+
+    void write_logfile();
+
+    ~exec_trace() {
+        for (invocation* i : log) {
+            delete i;
+        }
+    }
 };
 
 #endif  // BENCH_UTIL_H

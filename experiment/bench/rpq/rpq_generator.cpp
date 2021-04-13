@@ -6,6 +6,8 @@
 
 #define PA (pattern.PR_ADD)
 #define PI (pattern.PR_ADD + pattern.PR_INC)
+#define PM (pattern.PR_ADD + pattern.PR_INC + pattern.PR_MAX)
+#define PS (pattern.PR_ADD + pattern.PR_INC + pattern.PR_MAX + pattern.PR_SCORE)
 #define PAA (pattern.PR_ADD_CA)
 #define PAR (pattern.PR_ADD_CA + pattern.PR_ADD_CR)
 #define PRA (pattern.PR_REM_CA)
@@ -14,12 +16,12 @@
 rpq_generator::rpq_op_gen_pattern& rpq_generator::get_pattern(const string& name)
 {
     static map<string, rpq_op_gen_pattern> patterns{{"default",
-                                                    //  {.PR_ADD = 0.41,
-                                                    //   .PR_INC = 0.2,
-                                                    //   .PR_REM = 0.39,
-                                                    {.PR_ADD = 0.11,
-                                                      .PR_INC = 0.8,
-                                                      .PR_REM = 0.09,
+                                                     {.PR_ADD = 0.31,
+                                                      .PR_INC = 0.25,
+                                                      .PR_MAX = 0.1,
+                                                      .PR_SCORE = 0.1,
+                                                      .PR_REM = 0.24,
+                                                      
                                                       .PR_ADD_CA = 0.15,
                                                       .PR_ADD_CR = 0.05,
                                                       .PR_REM_CA = 0.1,
@@ -27,7 +29,9 @@ rpq_generator::rpq_op_gen_pattern& rpq_generator::get_pattern(const string& name
 
                                                     {"ardominant",
                                                      {.PR_ADD = 0.11,
-                                                      .PR_INC = 0.8,
+                                                      .PR_INC = 0.6,
+                                                      .PR_MAX = 0.1,
+                                                      .PR_SCORE = 0.1,
                                                       .PR_REM = 0.09,
 
                                                       .PR_ADD_CA = 0.15,
@@ -55,7 +59,6 @@ struct invocation* rpq_generator::normal_exec_add(redis_client& c)
 
 struct invocation* rpq_generator::exec_incrby(redis_client& c, int element, double value)
 {
-    cout<<"incrby\n";
     ele.write_op_executed++;
     auto start = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     redisReply_ptr reply = c.exec(new rpq_incrby_cmd(zt, ele, element, value));
@@ -82,6 +85,65 @@ struct invocation* rpq_generator::exec_rem(redis_client& c, int element)
     return inv;
 }
 
+struct invocation* rpq_generator::exec_max(redis_client& c) 
+{
+    //cout<<"max\n";
+    ele.write_op_executed++;
+    auto start = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    redisReply_ptr reply = c.exec(new rpq_max_cmd(zt, ele));
+    auto end = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    invocation* inv = new invocation;
+    inv->start_time = start;
+    inv->end_time = end;
+    if (reply->elements == 2) {
+        string ret1 = reply->element[0]->str;
+        string ret2 = reply->element[1]->str;
+        string operation = "max," + ret1 + "," + ret2;
+        inv->operation = operation;
+    } else {
+        string ret = "null";
+        string operation = "max," + ret;
+        inv->operation = operation;
+    }
+    return inv;
+    return inv;
+}
+
+struct invocation* rpq_generator::exec_score(redis_client& c, int element) 
+{
+    //cout<<"score\n";
+    ele.write_op_executed++;
+    auto start = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    redisReply_ptr reply = c.exec(new rpq_score_cmd(zt, ele, element));
+    auto end = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    invocation* inv = new invocation;
+    inv->start_time = start;
+    inv->end_time = end;
+    // if (reply->elements == 2) {
+    //     string ret1 = reply->element[0]->str;
+    //     string ret2 = reply->element[1]->str;
+    //     string operation = "score," + to_string(element) + "," + ret1 + "," + ret2;
+    //     inv->operation = operation;
+    // } else {
+    //     string ret = "null";
+    //     string operation = "score," + to_string(element) + "," + ret;
+    //     inv->operation = operation;
+    // }
+    if (reply->type == 1)
+    {
+        string operation = "score," + to_string(element) + "," + reply->str;
+        inv->operation = operation;
+    }
+    else 
+    {
+        string operation = "score," + to_string(element) + "," + "null";
+        inv->operation = operation;
+    }
+
+    
+    return inv;
+}
+
 struct invocation* rpq_generator::gen_and_exec(redis_client& c)
 {
     int e;
@@ -99,6 +161,18 @@ struct invocation* rpq_generator::gen_and_exec(redis_client& c)
         double d = doubleRand(-MAX_INCR, MAX_INCR);
         return exec_incrby(c, e, d);
         //redisReply_ptr reply = c.exec(new rpq_incrby_cmd(zt, ele, e, d));
+    }
+    else if (rand <= PM)
+    {
+        //cout<<"m\n";
+        return exec_max(c);
+    } else if (rand <= PS)
+    {
+        //cout<<"s\n";
+        e = ele.random_get();
+        if (e == -1) 
+            return normal_exec_add(c);
+        return exec_score(c, e);
     }
     else
     {

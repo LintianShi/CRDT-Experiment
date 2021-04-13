@@ -89,6 +89,23 @@ public:
     }
 };
 
+class rpq_score_cmd : public rpq_cmd
+{
+private:
+    int element;
+public:
+    rpq_score_cmd(const string &type, rpq_log &pq, int element)
+         : rpq_cmd(type, pq, "score"), element(element) 
+         {
+            add_args(element);
+         }
+
+    void handle_redis_return(const redisReply_ptr &r) override
+    {
+        ;
+    }
+};
+
 class rpq_overhead_cmd : public rpq_cmd
 {
 public:

@@ -18,6 +18,8 @@ private:
     {
         double PR_ADD;
         double PR_INC;
+        double PR_MAX;
+        double PR_SCORE;
         double PR_REM;
 
         double PR_ADD_CA;
@@ -40,6 +42,9 @@ private:
     struct invocation* normal_exec_add(redis_client& c);
     struct invocation* exec_incrby(redis_client& c, int element, double value);
     struct invocation* exec_rem(redis_client& c, int element);
+    struct invocation* exec_max(redis_client& c);
+    struct invocation* exec_score(redis_client& c, int element);
+
 
 public:
     rpq_generator(const string &type, rpq_log &e, const string &p)

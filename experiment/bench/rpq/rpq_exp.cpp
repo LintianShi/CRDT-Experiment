@@ -12,7 +12,7 @@ exp_setting::default_setting rpq_exp::rpq_setting{
     .delay = 50,
     .delay_low = 10,
     .total_clusters = 3,
-    .server_per_cluster = 3,
+    .server_per_cluster = {2,2,1},
     .op_per_sec = 100,
     .speed_e = {.start = 500, .end = 10000, .step = 100},
     .replica_e = {.start = 1, .end = 5, .step = 1},

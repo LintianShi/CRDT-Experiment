@@ -63,12 +63,18 @@ private:
         for (int i = 0; i < exp_setting::total_clusters; ++i)
         {
             ostringstream repl_stream;
-            for (int k = 0; k < i * exp_setting::server_per_cluster; ++k)
+            int between_server = 0;
+            for (int h = 0; h < i - 1; h++) {
+                between_server += exp_setting::server_per_cluster[h];
+            }
+            for (int k = 0; k < between_server; ++k) {
                 repl_stream << " " << IP_BETWEEN_CLUSTER << " " << BASE_PORT + k;
-            for (int j = 0; j < exp_setting::server_per_cluster; ++j)
+            } 
+
+            for (int j = 0; j < exp_setting::server_per_cluster[i]; ++j)
             {
                 ostringstream cmd_stream;
-                int num = i * exp_setting::server_per_cluster + j;
+                int num = between_server + j;
                 cmd_stream << REDIS_CLIENT << " -h 127.0.0.1 -p " << BASE_PORT + num
                            << " REPLICATE " << TOTAL_SERVERS << " " << num << " exp_local"
                            << repl_stream.str();

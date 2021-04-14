@@ -382,14 +382,6 @@ public:
                 delay_fix(delay, round, type);
     }
 
-    void test_replica(int round)
-    {
-        for (int replica = rdt_exp_setting.replica_e.start;
-             replica <= rdt_exp_setting.replica_e.end; replica += rdt_exp_setting.replica_e.step)
-            for (auto &type : rdt_types)
-                replica_fix(replica, round, type);
-    }
-
     void test_speed(int round)
     {
         for (int speed = rdt_exp_setting.speed_e.start; speed <= rdt_exp_setting.speed_e.end;
@@ -401,13 +393,6 @@ public:
     {
         exp_setter s(*this, type);
         exp_setting::set_delay(round, delay, delay / 5);
-        exp_impl(type);
-    }
-
-    void replica_fix(int s_p_c, int round, const string &type)
-    {
-        exp_setter s(*this, type);
-        exp_setting::set_replica(round, 3, s_p_c);
         exp_impl(type);
     }
 
@@ -434,7 +419,6 @@ public:
         for (int i = 0; i < rounds; i++)
         {
             test_delay(i);
-            test_replica(i);
             test_speed(i);
         }
 

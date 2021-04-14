@@ -8,7 +8,7 @@
 #include <cassert>
 #include <iostream>
 
-#define TOTAL_SERVERS (exp_setting::total_clusters * exp_setting::server_per_cluster)
+#define TOTAL_SERVERS (exp_setting::server_per_cluster[0] + exp_setting::server_per_cluster[1] + exp_setting::server_per_cluster[2])
 
 using namespace std;
 
@@ -22,7 +22,7 @@ public:
         int delay;
         int delay_low;
         int total_clusters;
-        int server_per_cluster;
+        int server_per_cluster[3];
         int op_per_sec;
 
         struct
@@ -44,7 +44,9 @@ private:
         delay = default_p->delay;
         delay_low = default_p->delay_low;
         total_clusters = default_p->total_clusters;
-        server_per_cluster = default_p->server_per_cluster;
+        server_per_cluster[0] = default_p->server_per_cluster[0];
+        server_per_cluster[1] = default_p->server_per_cluster[1];
+        server_per_cluster[2] = default_p->server_per_cluster[2];
         op_per_sec = default_p->op_per_sec;
     }
 
@@ -52,7 +54,7 @@ public:
     static int delay;
     static int delay_low;
     static int total_clusters;
-    static int server_per_cluster;
+    static int server_per_cluster[3];
     static int total_ops;
     static int op_per_sec;
 
@@ -93,7 +95,7 @@ public:
                     cout << "speed: " << op_per_sec << "op/s";
                     break;
                 case exp_type::replica:
-                    cout << "replica: " << total_clusters << "x" << server_per_cluster;
+                    cout << "replica: " << total_clusters << ":" << server_per_cluster[0]<<" "<<server_per_cluster[1]<<" "<<server_per_cluster[2];
                     break;
                 case exp_type::delay:
                     cout << "delay: (" << delay << "ms," << delay_low << "ms)";
@@ -118,17 +120,6 @@ public:
             / default_p->speed_e.times();
         round_num = round;
         type = exp_type::speed;
-    }
-
-    static inline void set_replica(int round, int cluster, int serverPCluster)
-    {
-        apply_default();
-        total_clusters = cluster;
-        server_per_cluster = serverPCluster;
-        total_ops = default_p->total_sec * op_per_sec / default_p->replica_e.times();
-        op_per_sec = op_per_sec / 10 * TOTAL_SERVERS;
-        round_num = round;
-        type = exp_type::replica;
     }
 
     static inline void set_delay(int round, int hd, int ld)

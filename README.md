@@ -1,5 +1,9 @@
 # Experiment on CRDT-Redis
-以完全黑盒的方式获取CRDT-Redis执行的trace，利用框架中的workload生成。
+* 以完全黑盒的方式获取CRDT-Redis执行的trace，基于bench框架中的workload生成，利用其中的冲突制造模块。
+* 支持rpq的add、rem、incrby、max、score操作
+* 修改框架以支持不对称的服务器配置\{2,2,1\}，\{2, 3, 3\}。实验不需要很多的线程，3、5、7足够了。
+## TODO
+* list有部分代码需要跟着修改一下
 
 # Conflict-Free Replicated Data Types Based on Redis
 

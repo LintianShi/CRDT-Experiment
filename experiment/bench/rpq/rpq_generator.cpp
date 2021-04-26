@@ -3,6 +3,7 @@
 //
 
 #include "rpq_generator.h"
+#include <math.h>
 
 #define PA (pattern.PR_ADD)
 #define PI (pattern.PR_ADD + pattern.PR_INC)
@@ -159,6 +160,7 @@ struct invocation* rpq_generator::gen_and_exec(redis_client& c)
             return normal_exec_add(c);
         }
         double d = doubleRand(-MAX_INCR, MAX_INCR);
+        d = floor(d);
         return exec_incrby(c, e, d);
         //redisReply_ptr reply = c.exec(new rpq_incrby_cmd(zt, ele, e, d));
     }
@@ -219,6 +221,7 @@ rpq_add_cmd* rpq_generator::gen_add()
 {
     int e;
     double d = doubleRand(0, MAX_INIT);
+    d = floor(d);
     double conf = decide();
     if (conf < PAA)
     {

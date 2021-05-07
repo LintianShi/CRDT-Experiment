@@ -40,7 +40,7 @@ private:
     static rpq_op_gen_pattern &get_pattern(const string &name);
     rpq_add_cmd *gen_add();
     struct invocation* normal_exec_add(redis_client& c);
-    struct invocation* exec_incrby(redis_client& c, int element, double value);
+    struct invocation* exec_incrby(redis_client& c, int element, int value);
     struct invocation* exec_rem(redis_client& c, int element);
     struct invocation* exec_max(redis_client& c);
     struct invocation* exec_score(redis_client& c, int element);

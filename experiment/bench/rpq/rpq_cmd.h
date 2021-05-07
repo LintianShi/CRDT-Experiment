@@ -23,8 +23,8 @@ class rpq_add_cmd : public rpq_cmd
 {
 public:
     int element;
-    double value;
-    rpq_add_cmd(const string &type, rpq_log &pq, int element, double value)
+    int value;
+    rpq_add_cmd(const string &type, rpq_log &pq, int element, int value)
         : rpq_cmd(type, pq, "add"), element(element), value(value)
     {
         add_args(element, value);
@@ -39,9 +39,9 @@ class rpq_incrby_cmd : public rpq_cmd
 {
 public:
     int element;
-    double value;
+    int value;
 
-    rpq_incrby_cmd(const string &type, rpq_log &pq, int element, double value)
+    rpq_incrby_cmd(const string &type, rpq_log &pq, int element, int value)
         : rpq_cmd(type, pq, "incrby"), element(element), value(value)
     {
         add_args(element, value);

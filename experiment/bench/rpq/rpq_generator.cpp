@@ -58,7 +58,7 @@ struct invocation* rpq_generator::normal_exec_add(redis_client& c)
     return inv;
 }
 
-struct invocation* rpq_generator::exec_incrby(redis_client& c, int element, double value)
+struct invocation* rpq_generator::exec_incrby(redis_client& c, int element, int value)
 {
     ele.write_op_executed++;
     auto start = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -159,8 +159,7 @@ struct invocation* rpq_generator::gen_and_exec(redis_client& c)
         {
             return normal_exec_add(c);
         }
-        double d = doubleRand(-MAX_INCR, MAX_INCR);
-        d = floor(d);
+        int d = intRand(-MAX_INCR, MAX_INCR);
         return exec_incrby(c, e, d);
         //redisReply_ptr reply = c.exec(new rpq_incrby_cmd(zt, ele, e, d));
     }
@@ -220,8 +219,7 @@ struct invocation* rpq_generator::gen_and_exec(redis_client& c)
 rpq_add_cmd* rpq_generator::gen_add()
 {
     int e;
-    double d = doubleRand(0, MAX_INIT);
-    d = floor(d);
+    int d = intRand(0, MAX_INIT);
     double conf = decide();
     if (conf < PAA)
     {

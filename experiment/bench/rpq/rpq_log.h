@@ -19,7 +19,7 @@ private:
     {
     public:
         int name;
-        double value;
+        int value;
         int index = -1;
 
         element(int k, double v) : name(k), value(v) {}

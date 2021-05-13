@@ -64,7 +64,7 @@ private:
         {
             ostringstream repl_stream;
             int between_server = 0;
-            for (int h = 0; h < i - 1; h++) {
+            for (int h = 0; h < i - 1; h++) { 
                 between_server += exp_setting::server_per_cluster[h];
             }
             for (int k = 0; k < between_server; ++k) {
@@ -85,39 +85,39 @@ private:
         std::this_thread::sleep_for(std::chrono::seconds(4));
     }
 
-    static void set_delay()
-    {
-        shell_exec("tc qdisc add dev lo root handle 1: prio", true);
+    // static void set_delay()
+    // {
+    //     shell_exec("tc qdisc add dev lo root handle 1: prio", true);
 
-        ostringstream stream;
-        stream << "tc qdisc add dev lo parent 1:1 handle 10: netem delay " << exp_setting::delay_low
-               << "ms " << exp_setting::delay_low / 5.0 << "ms distribution normal limit 100000";
-        shell_exec(stream.str(), true);
-        shell_exec(
-            "tc filter add dev lo protocol ip parent 1: "
-            "prio 1 u32 match ip dst " IP_WITHIN_CLUSTER " flowid 1:1",
-            true);
+    //     ostringstream stream;
+    //     stream << "tc qdisc add dev lo parent 1:1 handle 10: netem delay " << exp_setting::delay_low
+    //            << "ms " << exp_setting::delay_low / 5.0 << "ms distribution normal limit 100000";
+    //     shell_exec(stream.str(), true);
+    //     shell_exec(
+    //         "tc filter add dev lo protocol ip parent 1: "
+    //         "prio 1 u32 match ip dst " IP_WITHIN_CLUSTER " flowid 1:1",
+    //         true);
 
-        stream.str("");
-        stream << "tc qdisc add dev lo parent 1:2 handle 20: netem delay " << exp_setting::delay
-               << "ms " << exp_setting::delay / 5.0 << "ms distribution normal limit 100000";
-        shell_exec(stream.str(), true);
-        shell_exec(
-            "tc filter add dev lo protocol ip parent 1: "
-            "prio 1 u32 match ip dst " IP_BETWEEN_CLUSTER " flowid 1:2",
-            true);
+    //     stream.str("");
+    //     stream << "tc qdisc add dev lo parent 1:2 handle 20: netem delay " << exp_setting::delay
+    //            << "ms " << exp_setting::delay / 5.0 << "ms distribution normal limit 100000";
+    //     shell_exec(stream.str(), true);
+    //     shell_exec(
+    //         "tc filter add dev lo protocol ip parent 1: "
+    //         "prio 1 u32 match ip dst " IP_BETWEEN_CLUSTER " flowid 1:2",
+    //         true);
 
-        shell_exec("tc qdisc add dev lo parent 1:3 handle 30: pfifo_fast", true);
-        shell_exec(
-            "tc filter add dev lo protocol ip parent 1: prio 2 u32 match ip dst 0/0 flowid 1:3",
-            true);
-    }
+    //     shell_exec("tc qdisc add dev lo parent 1:3 handle 30: pfifo_fast", true);
+    //     shell_exec(
+    //         "tc filter add dev lo protocol ip parent 1: prio 2 u32 match ip dst 0/0 flowid 1:3",
+    //         true);
+    // }
 
-    static void remove_delay()
-    {
-        // shell_exec("tc filter del dev lo", true);
-        shell_exec("tc qdisc del dev lo root", true);
-    }
+    // static void remove_delay()
+    // {
+    //     // shell_exec("tc filter del dev lo", true);
+    //     shell_exec("tc qdisc del dev lo root", true);
+    // }
 
     static void shutdown_servers()
     {
@@ -142,14 +142,10 @@ public:
         cout << "server started, " << flush;
         construct_repl();
         cout << "replication constructed, " << flush;
-        set_delay();
-        cout << "delay set" << endl;
     }
 
     ~exp_env()
     {
-        remove_delay();
-        cout << "delay removed, " << flush;
         shutdown_servers();
         cout << "server shutdown, " << flush;
         clean();

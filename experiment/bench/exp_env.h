@@ -60,27 +60,18 @@ private:
 
     static void construct_repl()
     {
-        for (int i = 0; i < exp_setting::total_clusters; ++i)
+        for (int i = 0; i < exp_setting::total_servers; ++i)
         {
-            ostringstream repl_stream;
-            int between_server = 0;
-            for (int h = 0; h < i - 1; h++) { 
-                between_server += exp_setting::server_per_cluster[h];
-            }
-            for (int k = 0; k < between_server; ++k) {
-                repl_stream << " " << IP_BETWEEN_CLUSTER << " " << BASE_PORT + k;
+            ostringstream repl_stream;    
+            for (int k = 0; k < i; ++k) {
+                repl_stream << " " << IP_SERVER << " " << BASE_PORT + k;
             } 
 
-            for (int j = 0; j < exp_setting::server_per_cluster[i]; ++j)
-            {
-                ostringstream cmd_stream;
-                int num = between_server + j;
-                cmd_stream << REDIS_CLIENT << " -h 127.0.0.1 -p " << BASE_PORT + num
-                           << " REPLICATE " << TOTAL_SERVERS << " " << num << " exp_local"
-                           << repl_stream.str();
-                shell_exec(cmd_stream.str(), false);
-                repl_stream << " " << IP_WITHIN_CLUSTER << " " << BASE_PORT + num;
-            }
+            ostringstream cmd_stream;
+            cmd_stream << REDIS_CLIENT << " -h 127.0.0.1 -p " << BASE_PORT + i
+                         << " REPLICATE " << TOTAL_SERVERS << " " << i << " exp_local"
+                         << repl_stream.str();
+            shell_exec(cmd_stream.str(), false);
         }
         std::this_thread::sleep_for(std::chrono::seconds(4));
     }

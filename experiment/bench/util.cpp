@@ -18,8 +18,7 @@ exp_setting::default_setting *exp_setting::default_p = nullptr;
 
 int exp_setting::delay;
 int exp_setting::delay_low;
-int exp_setting::total_clusters;
-int exp_setting::server_per_cluster[3];
+int exp_setting::total_servers;
 int exp_setting::total_ops;
 int exp_setting::op_per_sec;
 

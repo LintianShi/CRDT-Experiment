@@ -99,7 +99,7 @@ struct invocation* rpq_generator::exec_max(redis_client& c)
     if (reply->elements == 2) {
         string ret1 = reply->element[0]->str;
         string ret2 = reply->element[1]->str;
-        string operation = "max," + ret1 + "," + ret2;
+        string operation = "max," + ret1 + " " + ret2;
         inv->operation = operation;
     } else {
         string ret = "null";

@@ -453,7 +453,8 @@ public:
     }
 
     void insert(invocation* inv) {
-        log.push_back(inv);
+        if (inv != NULL)
+            log.push_back(inv);
     }
 
     void write_logfile();

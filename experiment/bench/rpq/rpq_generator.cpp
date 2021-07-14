@@ -50,6 +50,9 @@ struct invocation* rpq_generator::normal_exec_add(redis_client& c)
     auto start = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     redisReply_ptr reply = c.exec(op_add); 
     auto end = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    if (reply == NULL || reply->type == 6) {
+        return NULL;
+    }
     invocation* inv = new invocation;
     inv->start_time = start;
     inv->end_time = end;
@@ -64,6 +67,9 @@ struct invocation* rpq_generator::exec_incrby(redis_client& c, int element, int 
     auto start = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     redisReply_ptr reply = c.exec(new rpq_incrby_cmd(zt, ele, element, value));
     auto end = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    if (reply == NULL || reply->type == 6) {
+        return NULL;
+    }
     invocation* inv = new invocation;
     inv->start_time = start;
     inv->end_time = end;
@@ -78,6 +84,9 @@ struct invocation* rpq_generator::exec_rem(redis_client& c, int element)
     auto start = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     redisReply_ptr reply = c.exec(new rpq_remove_cmd(zt, ele, element));
     auto end = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    if (reply == NULL || reply->type == 6) {
+        return NULL;
+    }
     invocation* inv = new invocation;
     inv->start_time = start;
     inv->end_time = end;
@@ -107,7 +116,6 @@ struct invocation* rpq_generator::exec_max(redis_client& c)
         inv->operation = operation;
     }
     return inv;
-    return inv;
 }
 
 struct invocation* rpq_generator::exec_score(redis_client& c, int element) 
@@ -131,7 +139,6 @@ struct invocation* rpq_generator::exec_score(redis_client& c, int element)
         string operation = "score," + to_string(element) + "," + "null";
         inv->operation = operation;
     }
-
     
     return inv;
 }

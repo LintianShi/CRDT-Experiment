@@ -80,6 +80,7 @@ public:
         for (int i = 0; i < TOTAL_SERVERS; ++i)
             conn_one_server_timed(IP_SERVER, BASE_PORT + i);
 
+        // for no use at the moment
         thread read_thread, ovhd_thread;
 
         if (read_cmd != nullptr)
@@ -123,6 +124,7 @@ public:
                 }
             });
         }
+        // at the moment
 
         thread progress_thread([this] {
             constexpr int barWidth = 50;

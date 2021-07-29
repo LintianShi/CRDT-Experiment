@@ -2,7 +2,7 @@
 
 if [ $# == 0 ]
 then
-    rm -rf ../bench/*.rdb ../bench/*.log
+    rm -rf *.rdb *.log
 else
     ports=($*)
     for port in ${ports[*]}

@@ -5,15 +5,6 @@ import paramiko
 import scp
 import redis
 
-# async def aredis_exec(conn, *cm, prt=0):
-#     try:
-#         r = await conn.execute_command(*cm)
-#         if prt != 0:
-#             print(r)
-#     except redis.exceptions.ResponseError as e:
-#         print(repr(e))
-
-
 def redis_exec(conn, *cm, prt=0):
     try:
         r = conn.execute_command(*cm)
@@ -84,9 +75,9 @@ def _set_delay(ssh, lo_delay, delay, ip1, ip2, limit=100000):
 
 class Connection:
     localhost = "127.0.0.1"
-    ips = ("172.21.252.92",
+    ips = ("172.21.252.91",
            "172.21.252.92",
-           "172.21.252.92")
+           "172.21.252.93")
     ports = (6379, 6380, 6381, 6382, 6383)
     sshs = []
     conns = []
@@ -108,13 +99,14 @@ class Connection:
         for ip in self.ips:
             for port in self.ports:
                 conn = redis.Redis(host=ip, port=port, decode_responses=True)
+                print(conn)
                 self.conns.append(conn)
         print("start & connect.")
 
     def shutdown(self):
         ssh_exec(self.sshs, "./shutdown.sh")
         time.sleep(8)
-        print("shutdown.")
+        print("shutdown all.")
 
     def clean(self):
         ssh_exec(self.sshs, "./clean.sh")
@@ -246,8 +238,7 @@ def main(argv):
 
     if len(argv) == 1:
         n = int(argv[0])
-    else:
-        print("invalid argument")
+
     # elif len(argv) == 4:
     #     delay = "{}ms {}ms".format(float(argv[0])/2, float(argv[1])/2)
     #     lo_delay = "{}ms {}ms".format(float(argv[2])/2, float(argv[3])/2)
@@ -259,6 +250,8 @@ def main(argv):
     # c.remove_delay()
     c.shutdown()
     c.clean()
+
+    time.sleep(2)
 
     # c.reset()
 

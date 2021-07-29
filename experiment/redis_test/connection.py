@@ -15,10 +15,10 @@ def redis_exec(conn, *cm, prt=0):
 
 
 def ssh_exec(sshs, cmd):
-    cmd = "cd ~/CRDT-Redis/experiment/redis_test/;" + cmd + " 1>/dev/null 2>&1"
+    cmd = "cd /home/shilintian/crdt-redis-experiment/experiment/redis_test/;" + cmd + " 1>/dev/null 2>&1"
     for ssh in sshs:
         stdin, stdout, stderr = ssh.exec_command(cmd)
-        # data = stdout.read()
+        data = stdout.read()
         # if len(data) > 0:
         #     print("d", bytes.decode(data.strip()))  # 打印正确结果
         # err = stderr.read()
@@ -88,6 +88,7 @@ class Connection:
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             ssh.connect(ip, 22, "root", "disalg.root!")
+            print(ssh)
             self.sshs.append(ssh)
 
     def reset(self):
@@ -180,7 +181,7 @@ def test():
     c = Connection(3)
     c.start()
     c.construct_repl()
-    c.set_delay("10ms 2ms", "100ms 10ms")
+    # c.set_delay("10ms 2ms", "100ms 10ms")
     try:
         redis_exec(c.conns[0], "VCNEW", "s")
         time.sleep(1)
@@ -236,14 +237,14 @@ def main(argv):
     # delay = "25ms 5ms"
     # lo_delay = "5ms 1ms"
 
-    if len(argv) == 1:
-        n = int(argv[0])
+    # if len(argv) == 1:
+    #     n = int(argv[0])
 
     # elif len(argv) == 4:
     #     delay = "{}ms {}ms".format(float(argv[0])/2, float(argv[1])/2)
     #     lo_delay = "{}ms {}ms".format(float(argv[2])/2, float(argv[3])/2)
 
-    print(n)
+    # print(n)
 
     c = Connection(n)
 
@@ -257,8 +258,14 @@ def main(argv):
 
     c.start()
     c.construct_repl()
+    print(c.conns[1].execute_command("rwfzadd Q 100 123"))
+    time.sleep(1)
+    print(c.conns[1].execute_command("rwfzadd Q 100 321"))
+    time.sleep(1)
+    print(c.conns[1].execute_command("rwfzscore Q 100"))
     # c.set_delay(lo_delay, delay)
 
+    # test()
     time.sleep(2)
 
 

@@ -88,7 +88,6 @@ class Connection:
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             ssh.connect(ip, 22, "root", "disalg.root!")
-            print(ssh)
             self.sshs.append(ssh)
 
     def reset(self):
@@ -256,13 +255,13 @@ def main(argv):
 
     # c.reset()
 
-    c.start()
-    c.construct_repl()
-    print(c.conns[1].execute_command("rwfzadd Q 100 123"))
-    time.sleep(1)
-    print(c.conns[1].execute_command("rwfzadd Q 100 321"))
-    time.sleep(1)
-    print(c.conns[1].execute_command("rwfzscore Q 100"))
+    # c.start()
+    # c.construct_repl()
+    # print(c.conns[1].execute_command("rwfzadd Q 100 123"))
+    # time.sleep(1)
+    # print(c.conns[1].execute_command("rwfzadd Q 100 321"))
+    # time.sleep(1)
+    # print(c.conns[1].execute_command("rwfzscore Q 100"))
     # c.set_delay(lo_delay, delay)
 
     # test()

@@ -1,14 +1,20 @@
 //
 // Created by admin on 2020/4/16.
 //
-
+#define LIBSSH_STATIC 1
+#include <libssh/libssh.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
 #ifndef BENCH_EXP_ENV_H
 #define BENCH_EXP_ENV_H
-
+#include <string>
+#include <vector>
 #include <chrono>
 #include <sstream>
 #include <thread>
-
+using namespace std;
 #include "exp_setting.h"
 
 #define REDIS_SERVER "../../redis-6.0.5/src/redis-server"
@@ -23,6 +29,11 @@ constexpr int BASE_PORT = 6379;
 class exp_env
 {
 private:
+    int cluster_num;
+    int replica_num;
+    vector<ssh_session> sessions;
+    string available_hosts[7] = {"n0.disalg.cn", "n1.disalg.cn", "n2.disalg.cn", "n3.disalg.cn", "n4.disalg.cn", "n5.disalg.cn", "n6.disalg.cn"};
+
     static void shell_exec(const char* cmd, bool sudo)
     {
 //#define PRINT_CMD
@@ -40,22 +51,55 @@ private:
 
     static inline void shell_exec(const string& cmd, bool sudo) { shell_exec(cmd.c_str(), sudo); }
 
+    int connect_all() {
+        for (int i = 0; i < cluster_num; i++) {
+            if (connect_one_server(available_hosts[i].c_str()) != 0) {
+                return -1;
+            }
+            
+        }
+        return 0;
+    }
+
+    int connect_one_server(const char* host) {
+        ssh_session my_ssh_session = ssh_new();
+        if (my_ssh_session == NULL)
+            return -1;
+
+        int port = 22;
+        ssh_options_set(my_ssh_session, SSH_OPTIONS_HOST, host);
+        ssh_options_set(my_ssh_session, SSH_OPTIONS_USER, "root");
+        ssh_options_set(my_ssh_session, SSH_OPTIONS_PORT, &port);
+
+        int rc;
+        rc = ssh_connect(my_ssh_session);
+        if (rc != SSH_OK)
+        {
+            fprintf(stderr, "Error connecting to localhost: %s\n",
+            ssh_get_error(my_ssh_session));
+            ssh_free(my_ssh_session);
+            return rc;
+        }
+
+        rc = ssh_userauth_password(my_ssh_session, NULL, "disalg.root!");
+        if (rc != SSH_AUTH_SUCCESS)
+        {
+            fprintf(stderr, "Error authenticating with password: %s\n", ssh_get_error(my_ssh_session));
+            ssh_disconnect(my_ssh_session);
+            ssh_free(my_ssh_session);
+            return rc;
+        }
+        sessions.push_back(my_ssh_session);
+        return 0;
+    }
+
+    int ssh_exec(char* cmd) {
+        return 0;
+    }
+
     static void start_servers()
     {
-        for (int port = BASE_PORT; port < BASE_PORT + TOTAL_SERVERS; ++port)
-        {
-            ostringstream stream;
-            stream << REDIS_SERVER << " " << REDIS_CONF << " "
-                   << "--protected-mode no "
-                   << "--daemonize yes "
-                   << "--loglevel debug "
-                   << "--io-threads 2 "
-                   << "--port " << port << " "
-                   << "--logfile " << port << ".log "
-                   << "--dbfilename " << port << ".rdb "
-                   << "--pidfile /var/run/redis_" << port << ".pid";
-            shell_exec(stream.str(), false);
-        }
+        ssh_exec("./server.sh")
     }
 
     static void construct_repl()
@@ -92,8 +136,13 @@ private:
 public:
     static string sudo_pwd;
 
-    exp_env()
+    exp_env(int cluster, int replica)
     {
+        cluster_num = cluster;
+        replica_num = replica;
+        if (connect_all() != 0) {
+            exit(-1);
+        }
         exp_setting::print_settings();
         start_servers();
         cout << "server started, " << flush;
@@ -107,6 +156,7 @@ public:
         cout << "server shutdown, " << flush;
         clean();
         cout << "cleaned\n" << endl;
+        delete []sessions;
     }
 };
 

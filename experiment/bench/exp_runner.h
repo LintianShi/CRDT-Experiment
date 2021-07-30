@@ -74,6 +74,11 @@ public:
     void run()
     {
         exp_env e;
+        // start servers
+        // construct replicas
+        // ...
+        // shutdown servers
+        // clean log & rdb
 
         auto start = chrono::steady_clock::now();
 

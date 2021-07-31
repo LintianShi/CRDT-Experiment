@@ -40,8 +40,6 @@ class exp_runner
 private:
     rdt_log &log;
     generator &gen;
-    cmd *read_cmd = nullptr;
-    cmd *ovhd_cmd = nullptr;
 
     vector<thread> thds;
 
@@ -67,63 +65,24 @@ private:
 public:
     exp_runner(rdt_log &log, generator &gen) : gen(gen), log(log) {}
 
-    void set_cmd_read(cmd &readCmd) { read_cmd = &readCmd; }
-
-    void set_cmd_ovhd(cmd &ovhdCmd) { ovhd_cmd = &ovhdCmd; }
-
     void run()
     {
-        exp_env e;
+        exp_env e(3,3);
+        // start servers
+        // construct replicas
+        // ...
+        // shutdown servers
+        // clean log & rdb
+        string ips[3] = {"172.21.252.91", "172.21.252.92", "172.21.252.93"};
 
         auto start = chrono::steady_clock::now();
-
-        for (int i = 0; i < TOTAL_SERVERS; ++i)
-            conn_one_server_timed(IP_SERVER, BASE_PORT + i);
-
-        thread read_thread, ovhd_thread;
-
-        if (read_cmd != nullptr)
-        {
-            read_thread = thread([this] {
-                redis_client c1(IP_SERVER, BASE_PORT);
-                redis_client c2(IP_SERVER, BASE_PORT + 1);
-                auto start_time = chrono::steady_clock::now();
-                int i = 0;
-                while (RUN_CONDITION)
-                {
-                    i++;
-                    auto tar_time = start_time + chrono::duration<double>(i * TIME_READ);
-                    this_thread::sleep_until(tar_time);
-                    if (!exp_setting::compare)
-                        read_cmd->exec(c1);
-                    else
-                    {
-                        auto at1 = async([this, &c1] { return c1.exec(*read_cmd); });
-                        auto at2 = async([this, &c2] { return c2.exec(*read_cmd); });
-                        auto r1 = at1.get();
-                        auto r2 = at2.get();
-                        log.log_compare(r1, r2);
-                    }
-                }
-            });
+        for (int i = 0; i < e.get_cluster_num(); i++) {
+            for (int j = 0; j < e.get_replica_num(); j++) {
+                cout<<ips[i]<<endl;
+                conn_one_server_timed(ips[i].c_str(), BASE_PORT + j);
+            }
         }
-
-        if (ovhd_cmd != nullptr)
-        {
-            ovhd_thread = thread([this] {
-                redis_client cl(IP_SERVER, BASE_PORT + 1);
-                auto start_time = chrono::steady_clock::now();
-                int i = 0;
-                while (RUN_CONDITION)
-                {
-                    i++;
-                    auto tar_time = start_time + chrono::duration<double>(i * TIME_OVERHEAD);
-                    this_thread::sleep_until(tar_time);
-                    ovhd_cmd->exec(cl);
-                }
-            });
-        }
-
+        
         thread progress_thread([this] {
             constexpr int barWidth = 50;
             double progress;
@@ -158,9 +117,6 @@ public:
         auto time = chrono::duration_cast<chrono::duration<double>>(end - start).count();
         cout << time << " seconds, " << log.write_op_generated / time << " op/s\n";
         cout << log.write_op_executed << " operations actually executed on redis." << endl;
-
-        if (read_thread.joinable()) read_thread.join();
-        if (ovhd_thread.joinable()) ovhd_thread.join();
 
         log.write_logfiles();
     }

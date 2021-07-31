@@ -16,7 +16,7 @@ include $(INCLUDES)
 	rm -f $@.$$$$
 
 bench: $(OBJS)
-	$(CC) -o bench_start $^ -pthread -lhiredis
+	$(CC) -o bench_start $^ -pthread -lhiredis -lssh
 	
 .PHONY: stop clean run
 

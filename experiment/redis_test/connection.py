@@ -5,15 +5,6 @@ import paramiko
 import scp
 import redis
 
-# async def aredis_exec(conn, *cm, prt=0):
-#     try:
-#         r = await conn.execute_command(*cm)
-#         if prt != 0:
-#             print(r)
-#     except redis.exceptions.ResponseError as e:
-#         print(repr(e))
-
-
 def redis_exec(conn, *cm, prt=0):
     try:
         r = conn.execute_command(*cm)
@@ -24,10 +15,10 @@ def redis_exec(conn, *cm, prt=0):
 
 
 def ssh_exec(sshs, cmd):
-    cmd = "cd ~/CRDT-Redis/experiment/redis_test/;" + cmd + " 1>/dev/null 2>&1"
+    cmd = "cd /home/shilintian/crdt-redis-experiment/experiment/redis_test/;" + cmd + " 1>/dev/null 2>&1"
     for ssh in sshs:
         stdin, stdout, stderr = ssh.exec_command(cmd)
-        # data = stdout.read()
+        data = stdout.read()
         # if len(data) > 0:
         #     print("d", bytes.decode(data.strip()))  # 打印正确结果
         # err = stderr.read()
@@ -84,9 +75,9 @@ def _set_delay(ssh, lo_delay, delay, ip1, ip2, limit=100000):
 
 class Connection:
     localhost = "127.0.0.1"
-    ips = ("192.168.188.135",
-           "192.168.188.136",
-           "192.168.188.137")
+    ips = ("172.21.252.91",
+           "172.21.252.92",
+           "172.21.252.93")
     ports = (6379, 6380, 6381, 6382, 6383)
     sshs = []
     conns = []
@@ -96,7 +87,7 @@ class Connection:
         for ip in self.ips:
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect(ip, 22, "user", "user")
+            ssh.connect(ip, 22, "root", "disalg.root!")
             self.sshs.append(ssh)
 
     def reset(self):
@@ -108,13 +99,14 @@ class Connection:
         for ip in self.ips:
             for port in self.ports:
                 conn = redis.Redis(host=ip, port=port, decode_responses=True)
+                print(conn)
                 self.conns.append(conn)
         print("start & connect.")
 
     def shutdown(self):
         ssh_exec(self.sshs, "./shutdown.sh")
         time.sleep(8)
-        print("shutdown.")
+        print("shutdown all.")
 
     def clean(self):
         ssh_exec(self.sshs, "./clean.sh")
@@ -140,30 +132,30 @@ class Connection:
         time.sleep(2)
         print("Replication construct complete.")
 
-    def set_delay(self, lo_delay, delay):
-        _set_delay(self.sshs[0], lo_delay, delay, self.ips[1], self.ips[2])
-        _set_delay(self.sshs[1], lo_delay, delay, self.ips[2], self.ips[0])
-        _set_delay(self.sshs[2], lo_delay, delay, self.ips[0], self.ips[1])
-        time.sleep(2)
-        print("delay set.")
+    # def set_delay(self, lo_delay, delay):
+    #     _set_delay(self.sshs[0], lo_delay, delay, self.ips[1], self.ips[2])
+    #     _set_delay(self.sshs[1], lo_delay, delay, self.ips[2], self.ips[0])
+    #     _set_delay(self.sshs[2], lo_delay, delay, self.ips[0], self.ips[1])
+    #     time.sleep(2)
+    #     print("delay set.")
 
-    def remove_delay(self):
-        cmd = ("sudo tc filter del dev ens33",
-               "sudo tc qdisc del dev ens33 root",
-               "sudo tc qdisc del dev lo root")
-        for ssh in self.sshs:
-            for c in cmd:
-                stdin, stdout, stderr = ssh.exec_command(c, get_pty=True)
-                stdin.write("user\n")
-                stdin.flush()
-                # data = stdout.read()
-                # if len(data) > 0:
-                #     print("d", bytes.decode(data.strip()))  # 打印正确结果
-                # err = stderr.read()
-                # if len(err) > 0:
-                #     print(bytes.decode(err.strip()))  # 输出错误结果
-        time.sleep(2)
-        print("delay removed.")
+    # def remove_delay(self):
+    #     cmd = ("sudo tc filter del dev ens33",
+    #            "sudo tc qdisc del dev ens33 root",
+    #            "sudo tc qdisc del dev lo root")
+    #     for ssh in self.sshs:
+    #         for c in cmd:
+    #             stdin, stdout, stderr = ssh.exec_command(c, get_pty=True)
+    #             stdin.write("user\n")
+    #             stdin.flush()
+    #             # data = stdout.read()
+    #             # if len(data) > 0:
+    #             #     print("d", bytes.decode(data.strip()))  # 打印正确结果
+    #             # err = stderr.read()
+    #             # if len(err) > 0:
+    #             #     print(bytes.decode(err.strip()))  # 输出错误结果
+    #     time.sleep(2)
+    #     print("delay removed.")
 
     def __del__(self):
         # ssh_exec(self.sshs, "./shutdown.sh " + " ".join(str(p) for p in self.ports))
@@ -188,7 +180,7 @@ def test():
     c = Connection(3)
     c.start()
     c.construct_repl()
-    c.set_delay("10ms 2ms", "100ms 10ms")
+    # c.set_delay("10ms 2ms", "100ms 10ms")
     try:
         redis_exec(c.conns[0], "VCNEW", "s")
         time.sleep(1)
@@ -241,29 +233,38 @@ def test():
 
 def main(argv):
     n = 3
-    delay = "25ms 5ms"
-    lo_delay = "5ms 1ms"
+    # delay = "25ms 5ms"
+    # lo_delay = "5ms 1ms"
 
-    if len(argv) == 1:
-        n = int(argv[0])
-    elif len(argv) == 4:
-        delay = "{}ms {}ms".format(float(argv[0])/2, float(argv[1])/2)
-        lo_delay = "{}ms {}ms".format(float(argv[2])/2, float(argv[3])/2)
+    # if len(argv) == 1:
+    #     n = int(argv[0])
 
-    print(n, delay, lo_delay)
+    # elif len(argv) == 4:
+    #     delay = "{}ms {}ms".format(float(argv[0])/2, float(argv[1])/2)
+    #     lo_delay = "{}ms {}ms".format(float(argv[2])/2, float(argv[3])/2)
+
+    # print(n)
 
     c = Connection(n)
 
-    c.remove_delay()
+    # c.remove_delay()
     c.shutdown()
     c.clean()
 
+    time.sleep(2)
+
     # c.reset()
 
-    c.start()
-    c.construct_repl()
-    c.set_delay(lo_delay, delay)
+    # c.start()
+    # c.construct_repl()
+    # print(c.conns[1].execute_command("rwfzadd Q 100 123"))
+    # time.sleep(1)
+    # print(c.conns[1].execute_command("rwfzadd Q 100 321"))
+    # time.sleep(1)
+    # print(c.conns[1].execute_command("rwfzscore Q 100"))
+    # c.set_delay(lo_delay, delay)
 
+    # test()
     time.sleep(2)
 
 

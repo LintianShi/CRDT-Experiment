@@ -8,7 +8,7 @@
 #include <cassert>
 #include <iostream>
 
-#define TOTAL_SERVERS (exp_setting::server_per_cluster[0] + exp_setting::server_per_cluster[1] + exp_setting::server_per_cluster[2])
+#define TOTAL_SERVERS exp_setting::total_servers
 
 using namespace std;
 
@@ -21,8 +21,7 @@ public:
 
         int delay;
         int delay_low;
-        int total_clusters;
-        int server_per_cluster[3];
+        int total_servers;
         int op_per_sec;
 
         struct
@@ -43,18 +42,14 @@ private:
         assert(default_p != nullptr);
         delay = default_p->delay;
         delay_low = default_p->delay_low;
-        total_clusters = default_p->total_clusters;
-        server_per_cluster[0] = default_p->server_per_cluster[0];
-        server_per_cluster[1] = default_p->server_per_cluster[1];
-        server_per_cluster[2] = default_p->server_per_cluster[2];
+        total_servers = default_p->total_servers;
         op_per_sec = default_p->op_per_sec;
     }
 
 public:
     static int delay;
     static int delay_low;
-    static int total_clusters;
-    static int server_per_cluster[3];
+    static int total_servers;
     static int total_ops;
     static int op_per_sec;
 
@@ -95,7 +90,7 @@ public:
                     cout << "speed: " << op_per_sec << "op/s";
                     break;
                 case exp_type::replica:
-                    cout << "replica: " << total_clusters << ":" << server_per_cluster[0]<<" "<<server_per_cluster[1]<<" "<<server_per_cluster[2];
+                    cout << "replica: " << total_servers;
                     break;
                 case exp_type::delay:
                     cout << "delay: (" << delay << "ms," << delay_low << "ms)";

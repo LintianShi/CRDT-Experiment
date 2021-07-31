@@ -1,14 +1,20 @@
 //
 // Created by admin on 2020/4/16.
 //
-
+#define LIBSSH_STATIC 1
+#include <libssh/libssh.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
 #ifndef BENCH_EXP_ENV_H
 #define BENCH_EXP_ENV_H
-
+#include <string>
+#include <vector>
 #include <chrono>
 #include <sstream>
 #include <thread>
-
+using namespace std;
 #include "exp_setting.h"
 
 #define REDIS_SERVER "../../redis-6.0.5/src/redis-server"
@@ -23,6 +29,12 @@ constexpr int BASE_PORT = 6379;
 class exp_env
 {
 private:
+    int cluster_num;
+    int replica_num;
+    string exec_path;
+    vector<ssh_session> sessions;
+    string available_hosts[7] = {"n0.disalg.cn", "n1.disalg.cn", "n2.disalg.cn", "n3.disalg.cn", "n4.disalg.cn", "n5.disalg.cn", "n6.disalg.cn"};
+    string available_ports[5] = {"6379", "6380", "6381", "6382", "6383"};
     static void shell_exec(const char* cmd, bool sudo)
     {
 //#define PRINT_CMD
@@ -40,120 +52,204 @@ private:
 
     static inline void shell_exec(const string& cmd, bool sudo) { shell_exec(cmd.c_str(), sudo); }
 
-    static void start_servers()
-    {
-        for (int port = BASE_PORT; port < BASE_PORT + TOTAL_SERVERS; ++port)
-        {
-            ostringstream stream;
-            stream << REDIS_SERVER << " " << REDIS_CONF << " "
-                   << "--protected-mode no "
-                   << "--daemonize yes "
-                   << "--loglevel debug "
-                   << "--io-threads 2 "
-                   << "--port " << port << " "
-                   << "--logfile " << port << ".log "
-                   << "--dbfilename " << port << ".rdb "
-                   << "--pidfile /var/run/redis_" << port << ".pid";
-            shell_exec(stream.str(), false);
+    int ssh_exec(ssh_session session, string cmd) {
+        ssh_channel channel;
+        channel = ssh_channel_new(session);
+        if (channel == NULL) {
+            printf("%s\n", "channel is NULL");
+            return -1;
         }
-    }
 
-    static void construct_repl()
-    {
-        for (int i = 0; i < exp_setting::total_clusters; ++i)
+        int rc;
+        rc = ssh_channel_open_session(channel);
+        if (rc != SSH_OK)
         {
-            ostringstream repl_stream;
-            int between_server = 0;
-            for (int h = 0; h < i - 1; h++) {
-                between_server += exp_setting::server_per_cluster[h];
-            }
-            for (int k = 0; k < between_server; ++k) {
-                repl_stream << " " << IP_BETWEEN_CLUSTER << " " << BASE_PORT + k;
-            } 
+            ssh_channel_free(channel);
+            return -1;
+        }
 
-            for (int j = 0; j < exp_setting::server_per_cluster[i]; ++j)
+        string exec_cmd = exec_path + cmd;
+        rc = ssh_channel_request_exec(channel, exec_cmd.c_str());
+        if (rc != SSH_OK)
+        {
+            ssh_channel_close(channel);
+            ssh_channel_free(channel);
+            printf("%s\n", "ssh is not OK");
+            return -1;
+        }
+ 
+        int nbytes;
+        char buffer[256];
+        nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
+        while (nbytes > 0)
+        {
+            if (write(1, buffer, nbytes) != (unsigned int) nbytes)
             {
-                ostringstream cmd_stream;
-                int num = between_server + j;
-                cmd_stream << REDIS_CLIENT << " -h 127.0.0.1 -p " << BASE_PORT + num
-                           << " REPLICATE " << TOTAL_SERVERS << " " << num << " exp_local"
-                           << repl_stream.str();
-                shell_exec(cmd_stream.str(), false);
-                repl_stream << " " << IP_WITHIN_CLUSTER << " " << BASE_PORT + num;
+                ssh_channel_close(channel);
+                ssh_channel_free(channel);
+                exit(-1);
+            }
+            nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
+        }
+    
+        ssh_channel_send_eof(channel);
+        ssh_channel_close(channel);
+        ssh_channel_free(channel);
+    }
+
+    int connect_all() {
+        for (int i = 0; i < cluster_num; i++) {
+            if (connect_one_server(available_hosts[i]) != 0) {
+                return -1;
+            }
+            
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+        printf("connect all.\n");
+        return 0;
+    }
+
+    int connect_one_server(string host) {
+        ssh_session my_ssh_session = ssh_new();
+        if (my_ssh_session == NULL)
+            return -1;
+
+        int port = 22;
+        ssh_options_set(my_ssh_session, SSH_OPTIONS_HOST, host.c_str());
+        ssh_options_set(my_ssh_session, SSH_OPTIONS_USER, "root");
+        ssh_options_set(my_ssh_session, SSH_OPTIONS_PORT, &port);
+
+        int rc;
+        rc = ssh_connect(my_ssh_session);
+        if (rc != SSH_OK)
+        {
+            fprintf(stderr, "Error connecting to localhost: %s\n",
+            ssh_get_error(my_ssh_session));
+            ssh_free(my_ssh_session);
+            return rc;
+        }
+
+        rc = ssh_userauth_password(my_ssh_session, NULL, "disalg.root!");
+        if (rc != SSH_AUTH_SUCCESS)
+        {
+            fprintf(stderr, "Error authenticating with password: %s\n", ssh_get_error(my_ssh_session));
+            ssh_disconnect(my_ssh_session);
+            ssh_free(my_ssh_session);
+            return rc;
+        }
+        sessions.push_back(my_ssh_session);
+        return 0;
+    }
+
+    void start_servers()
+    {
+        for (int i = 0; i < sessions.size(); i++) {
+            ssh_session session = sessions[i];
+            string cmd = "./server.sh";
+            for (int j = 0; j < replica_num; j++) {
+                cmd += " " + available_ports[j];
+            }
+            ssh_exec(session, cmd.c_str());
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+        printf("start & connect.\n");
+    }
+
+    void construct_repl()
+    {
+        vector<string> repl_cmd;
+        repl_cmd.push_back(string("../../redis-6.0.5/src/redis-cli -h 127.0.0.1 -p"));
+        repl_cmd.push_back(string("1"));
+        repl_cmd.push_back(string("REPLICATE"));
+        repl_cmd.push_back(std::to_string(cluster_num * replica_num));
+        repl_cmd.push_back(string("0"));
+        repl_cmd.push_back(string("exp_local"));
+        for (int i = 0; i < cluster_num; i++) {
+            for (int j = 0; j < replica_num; j++) {
+                int host_id = i * cluster_num + j;
+                repl_cmd[1] = available_ports[j];
+                ssh_exec(sessions[i], generate_repl_cmd(repl_cmd));
+                repl_cmd[4] = to_string(host_id + 1);
+                repl_cmd.push_back(available_hosts[i]);
+                repl_cmd.push_back(available_ports[j]);
             }
         }
-        std::this_thread::sleep_for(std::chrono::seconds(4));
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+        printf("Replication construct complete.\n");
     }
 
-    static void set_delay()
-    {
-        shell_exec("tc qdisc add dev lo root handle 1: prio", true);
-
-        ostringstream stream;
-        stream << "tc qdisc add dev lo parent 1:1 handle 10: netem delay " << exp_setting::delay_low
-               << "ms " << exp_setting::delay_low / 5.0 << "ms distribution normal limit 100000";
-        shell_exec(stream.str(), true);
-        shell_exec(
-            "tc filter add dev lo protocol ip parent 1: "
-            "prio 1 u32 match ip dst " IP_WITHIN_CLUSTER " flowid 1:1",
-            true);
-
-        stream.str("");
-        stream << "tc qdisc add dev lo parent 1:2 handle 20: netem delay " << exp_setting::delay
-               << "ms " << exp_setting::delay / 5.0 << "ms distribution normal limit 100000";
-        shell_exec(stream.str(), true);
-        shell_exec(
-            "tc filter add dev lo protocol ip parent 1: "
-            "prio 1 u32 match ip dst " IP_BETWEEN_CLUSTER " flowid 1:2",
-            true);
-
-        shell_exec("tc qdisc add dev lo parent 1:3 handle 30: pfifo_fast", true);
-        shell_exec(
-            "tc filter add dev lo protocol ip parent 1: prio 2 u32 match ip dst 0/0 flowid 1:3",
-            true);
+    string generate_repl_cmd(vector<string>& cmds) {
+        string cmd = cmds[0];
+        for (int i = 1; i < cmds.size(); i++) {
+            cmd += " " + cmds[i];
+        }
+        return cmd;
     }
 
-    static void remove_delay()
+    void shutdown_servers()
     {
-        // shell_exec("tc filter del dev lo", true);
-        shell_exec("tc qdisc del dev lo root", true);
-    }
-
-    static void shutdown_servers()
-    {
-        for (int port = BASE_PORT; port < BASE_PORT + TOTAL_SERVERS; ++port)
-        {
-            ostringstream stream;
-            stream << REDIS_CLIENT << " -h 127.0.0.1 -p " << port << " SHUTDOWN NOSAVE";
-            shell_exec(stream.str(), false);
+        for (int i = 0; i < sessions.size(); i++) {
+            ssh_session session = sessions[i];
+            string cmd = "./shutdown.sh";
+            for (int j = 0; j < replica_num; j++) {
+                cmd += " " + available_ports[j];
+            }
+            ssh_exec(session, cmd.c_str());
         }
         std::this_thread::sleep_for(std::chrono::seconds(4));
+        printf("shutdown all.\n");
     }
 
-    static void clean() { shell_exec("rm -rf *.rdb *.log", false); }
+    void clean() { 
+        for (int i = 0; i < sessions.size(); i++) {
+            ssh_session session = sessions[i];
+            string cmd = "./clean.sh";
+            for (int j = 0; j < replica_num; j++) {
+                cmd += " " + available_ports[j];
+            }
+            ssh_exec(session, cmd.c_str());
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(4));
+        printf("clean.\n");
+    }
 
 public:
     static string sudo_pwd;
 
-    exp_env()
+    int get_cluster_num() {
+        return cluster_num;
+    }
+
+    int get_replica_num() {
+        return replica_num;
+    }
+
+    exp_env(int cluster, int replica)
     {
+        cluster_num = cluster;
+        replica_num = replica;
+        exec_path = "cd /home/shilintian/crdt-redis-experiment/experiment/redis_test/;";
+        if (connect_all() != 0) {
+            exit(-1);
+        }
         exp_setting::print_settings();
         start_servers();
         cout << "server started, " << flush;
         construct_repl();
         cout << "replication constructed, " << flush;
-        set_delay();
-        cout << "delay set" << endl;
     }
 
     ~exp_env()
     {
-        remove_delay();
-        cout << "delay removed, " << flush;
         shutdown_servers();
         cout << "server shutdown, " << flush;
         clean();
         cout << "cleaned\n" << endl;
+        for (int i = 0; i < sessions.size(); i++) {
+            ssh_session session = sessions[i];
+            ssh_disconnect(session);
+            ssh_free(session);
+        }
     }
 };
 

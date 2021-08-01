@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <stdarg.h>
 #ifndef BENCH_EXP_ENV_H
 #define BENCH_EXP_ENV_H
 #include <string>
@@ -30,7 +31,8 @@ class exp_env
 {
 private:
     int cluster_num;
-    int replica_num;
+    int* replica_nums;
+    int total_server;
     string exec_path;
     vector<ssh_session> sessions;
     string available_hosts[7] = {"n0.disalg.cn", "n1.disalg.cn", "n2.disalg.cn", "n3.disalg.cn", "n4.disalg.cn", "n5.disalg.cn", "n6.disalg.cn"};
@@ -146,7 +148,7 @@ private:
         for (int i = 0; i < sessions.size(); i++) {
             ssh_session session = sessions[i];
             string cmd = "./server.sh";
-            for (int j = 0; j < replica_num; j++) {
+            for (int j = 0; j < replica_nums[i]; j++) {
                 cmd += " " + available_ports[j];
             }
             ssh_exec(session, cmd.c_str());
@@ -161,17 +163,18 @@ private:
         repl_cmd.push_back(string("../../redis-6.0.5/src/redis-cli -h 127.0.0.1 -p"));
         repl_cmd.push_back(string("1"));
         repl_cmd.push_back(string("REPLICATE"));
-        repl_cmd.push_back(std::to_string(cluster_num * replica_num));
+        repl_cmd.push_back(std::to_string(total_server));
         repl_cmd.push_back(string("0"));
         repl_cmd.push_back(string("exp_local"));
+        int host_id = 0;
         for (int i = 0; i < cluster_num; i++) {
-            for (int j = 0; j < replica_num; j++) {
-                int host_id = i * cluster_num + j;
+            for (int j = 0; j < replica_nums[i]; j++) {
                 repl_cmd[1] = available_ports[j];
                 ssh_exec(sessions[i], generate_repl_cmd(repl_cmd));
                 repl_cmd[4] = to_string(host_id + 1);
                 repl_cmd.push_back(available_hosts[i]);
                 repl_cmd.push_back(available_ports[j]);
+                host_id++;
             }
         }
         std::this_thread::sleep_for(std::chrono::seconds(2));
@@ -191,7 +194,7 @@ private:
         for (int i = 0; i < sessions.size(); i++) {
             ssh_session session = sessions[i];
             string cmd = "./shutdown.sh";
-            for (int j = 0; j < replica_num; j++) {
+            for (int j = 0; j < replica_nums[i]; j++) {
                 cmd += " " + available_ports[j];
             }
             ssh_exec(session, cmd.c_str());
@@ -204,7 +207,7 @@ private:
         for (int i = 0; i < sessions.size(); i++) {
             ssh_session session = sessions[i];
             string cmd = "./clean.sh";
-            for (int j = 0; j < replica_num; j++) {
+            for (int j = 0; j < replica_nums[i]; j++) {
                 cmd += " " + available_ports[j];
             }
             ssh_exec(session, cmd.c_str());
@@ -220,14 +223,23 @@ public:
         return cluster_num;
     }
 
-    int get_replica_num() {
-        return replica_num;
+    int* get_replica_nums() {
+        return replica_nums;
     }
 
-    exp_env(int cluster, int replica)
+    exp_env(int cluster, ...)
     {
         cluster_num = cluster;
-        replica_num = replica;
+        replica_nums = new int[cluster];
+        total_server = 0;
+        va_list argptr;
+        va_start( argptr, cluster); 
+        for (int i = 0; i < cluster; i++) {
+            replica_nums[i] = va_arg(argptr, int);
+            total_server += replica_nums[i];
+        }
+        va_end(argptr);
+
         exec_path = "cd /home/shilintian/crdt-redis-experiment/experiment/redis_test/;";
         if (connect_all() != 0) {
             exit(-1);
@@ -250,6 +262,7 @@ public:
             ssh_disconnect(session);
             ssh_free(session);
         }
+        delete []replica_nums;
     }
 };
 

@@ -67,7 +67,7 @@ public:
 
     void run()
     {
-        exp_env e(3,3);
+        exp_env e(3, 2, 2, 1);
         // start servers
         // construct replicas
         // ...
@@ -77,7 +77,7 @@ public:
 
         auto start = chrono::steady_clock::now();
         for (int i = 0; i < e.get_cluster_num(); i++) {
-            for (int j = 0; j < e.get_replica_num(); j++) {
+            for (int j = 0; j < e.get_replica_nums()[i]; j++) {
                 cout<<ips[i]<<endl;
                 conn_one_server_timed(ips[i].c_str(), BASE_PORT + j);
             }

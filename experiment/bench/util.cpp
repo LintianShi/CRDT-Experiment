@@ -32,9 +32,6 @@ int exp_setting::round_num;
 const char *exp_setting::type_str[] = {EXP_TYPE_CODEC(DEFINE_ACTION)};
 #undef DEFINE_ACTION
 
-int trace_signature = -1;
-string trace_dir = "../result/";
-
 int intRand(int min, int max)
 {
     static thread_local mt19937 *rand_gen = nullptr;
@@ -128,15 +125,24 @@ redisReply_ptr redis_client::exec()
     return redisReply_ptr(static_cast<redisReply *>(r), freeReplyObject);
 }
 
-void exec_trace::write_logfile()
+void exec_trace::write_logfile(string pattern, int server_num, int thread_per_server, int op_per_sec)
 {
-        ostringstream stream;
-        auto timeNow = chrono::duration_cast<chrono::nanoseconds>(chrono::system_clock::now().time_since_epoch()).count();
-        stream << trace_dir << "/" << to_string(timeNow) + ".trc";
-        ofstream fout(stream.str(), ios::out | ios::trunc);
-        for (int i = 0; i < log.size(); i++) {
-            string output = to_string(log[i]->start_time) + "," + to_string(log[i]->end_time) + "," + log[i]->operation + "\n";
-            fout<<output;
-        }
-        fout.close();
+    string trace_dir = "../result/RPQ_";
+    time_t myt = time(NULL);
+    trace_dir += pattern + "_" + to_string(server_num) + "_" + to_string(thread_per_server) + "_" + to_string(op_per_sec) + "_" + to_string(myt);
+    struct stat sb;
+    if (!(stat(trace_dir.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode))) {
+        mkdir(trace_dir.c_str(), S_IRWXU | S_IRGRP | S_IROTH);
     }
+
+    ostringstream stream;
+    auto timeNow = chrono::duration_cast<chrono::nanoseconds>(chrono::system_clock::now().time_since_epoch()).count();
+    stream << trace_dir << "/" << to_string(timeNow) + ".trc";
+    ofstream fout(stream.str(), ios::out | ios::trunc);
+    for (int i = 0; i < log.size(); i++) {
+        string output = to_string(log[i]->start_time) + "," + to_string(log[i]->end_time) + "," + log[i]->operation + "\n";
+        fout<<output;
+    }
+    fout.close();
+    trace_signature++;
+}

@@ -57,7 +57,7 @@ private:
                     auto tar_time = start_time + chrono::duration<double>(t * INTERVAL_TIME);
                     this_thread::sleep_until(tar_time);
                 }
-                trace.write_logfile();
+                trace.write_logfile(exp_setting::pattern_name, TOTAL_SERVERS, THREAD_PER_SERVER, exp_setting::op_per_sec);
             });
         }
     }
@@ -117,8 +117,6 @@ public:
         auto time = chrono::duration_cast<chrono::duration<double>>(end - start).count();
         cout << time << " seconds, " << log.write_op_generated / time << " op/s\n";
         cout << log.write_op_executed << " operations actually executed on redis." << endl;
-
-        log.write_logfiles();
     }
 };
 

@@ -38,8 +38,6 @@
 #define MAX_TIME_COLISION exp_setting::delay
 constexpr int SPLIT_NUM = 10;
 #define SLP_TIME_MICRO (MAX_TIME_COLISION * 1000 / SPLIT_NUM)
-extern int trace_signature;
-extern string trace_dir;
 
 using namespace std;
 
@@ -440,16 +438,10 @@ class exec_trace
 { 
 private:
     vector<invocation*> log;
+    int trace_signature;
 public:
     exec_trace() {
-        //cout<<"create\n";
-        if (trace_signature == -1) 
-        {
-            time_t myt = time(NULL);
-            trace_dir += to_string(myt);
-            trace_signature = 0;
-            mkdir(trace_dir.c_str(), S_IRWXU | S_IRGRP | S_IROTH);
-        }
+        trace_signature = -1;
     }
 
     void insert(invocation* inv) {
@@ -457,7 +449,7 @@ public:
             log.push_back(inv);
     }
 
-    void write_logfile();
+    void write_logfile(string pattern, int server_num, int thread_per_server, int op_per_sec);
 
     ~exec_trace() {
         for (invocation* i : log) {

@@ -17,8 +17,8 @@ class exp_setting
 public:
     struct default_setting
     {
+        string name;
         int total_sec;
-
         int delay;
         int delay_low;
         int total_servers;
@@ -44,6 +44,7 @@ private:
         delay_low = default_p->delay_low;
         total_servers = default_p->total_servers;
         op_per_sec = default_p->op_per_sec;
+        name = default_p->name;
     }
 
 public:
@@ -52,7 +53,7 @@ public:
     static int total_servers;
     static int total_ops;
     static int op_per_sec;
-
+    static string name;
     static bool compare;
 
 #define EXP_TYPE_CODEC(ACTION) \

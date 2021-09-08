@@ -21,6 +21,7 @@ int exp_setting::delay_low;
 int exp_setting::total_servers;
 int exp_setting::total_ops;
 int exp_setting::op_per_sec;
+string exp_setting::name;
 
 bool exp_setting::compare = false;
 
@@ -127,7 +128,7 @@ redisReply_ptr redis_client::exec()
 
 void exec_trace::write_logfile(string pattern, int server_num, int thread_per_server, int op_per_sec)
 {
-    string trace_dir = "../result/RPQ_";
+    string trace_dir = "../result/" + exp_setting::name + "_";
     time_t myt = time(NULL);
     trace_dir += pattern + "_" + to_string(server_num) + "_" + to_string(thread_per_server) + "_" + to_string(op_per_sec) + "_" + to_string(myt);
     struct stat sb;

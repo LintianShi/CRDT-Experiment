@@ -8,6 +8,7 @@
 #include "rpq_generator.h"
 
 exp_setting::default_setting rpq_exp::rpq_setting{
+    .name = "Rpq",
     .total_sec = 150,
     .delay = 50,
     .delay_low = 10,

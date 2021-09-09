@@ -61,7 +61,7 @@ struct invocation* list_generator::exec_remove(redis_client& c, string &id) {
     return inv;
 }
 
-struct invocation* list_generator::exec_get(redis_client& c, string& prev) {
+struct invocation* list_generator::exec_getNext(redis_client& c, string& prev) {
     auto start = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     redisReply_ptr reply = c.exec(new list_read_cmd(type, list));
     auto end = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -96,6 +96,32 @@ struct invocation* list_generator::exec_get(redis_client& c, string& prev) {
     return inv;
 }
 
+struct invocation* list_generator::exec_getIndex(redis_client& c, int index) {
+    auto start = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    redisReply_ptr reply = c.exec(new list_read_cmd(type, list));
+    auto end = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    if (reply == NULL || reply->type == 6) {
+        return NULL;
+    }
+
+    int r_len = reply->elements;
+    string name = "null";
+    if (index < r_len) {
+            name = reply->element[index]->element[0]->str;
+            name += ":";
+            name += + reply->element[index]->element[1]->str;
+    }
+
+    if (name.compare("null") == 0) {
+        return NULL;
+    }
+    invocation* inv = new invocation;
+    inv->start_time = start;
+    inv->end_time = end;
+    inv->operation = "get," + to_string(index) + "," + name;
+    return inv;
+}
+
 struct invocation* list_generator::gen_and_exec(redis_client &c)
 {
     int rand = intRand(0, 100);
@@ -104,9 +130,12 @@ struct invocation* list_generator::gen_and_exec(redis_client &c)
         return exec_insert(c); 
     }
     else if (rand <= 75) {
-        string prev = list.random_get();
-        if (prev.empty()) return exec_insert(c);
-        return exec_get(c, prev);
+        // string prev = list.random_get();
+        // if (prev.empty()) return exec_insert(c);
+        // return exec_getNext(c, prev);
+        int index = list.random_get_index();
+        if (index == -1) return exec_insert(c);
+        return exec_getIndex(c, index);
     }
     else
     {

@@ -138,6 +138,15 @@ string list_log::random_get()
     return random_it->first;
 }
 
+int list_log::random_get_index()
+{
+    lock_guard<mutex> lk(mtx);
+    if (ele_map.empty()) return -1;
+    int pos = intRand(ele_map.size()); 
+    return pos;
+}
+
+
 string list_log::random_get_removed()
 {
     lock_guard<mutex> lk(mtx);

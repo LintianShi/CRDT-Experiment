@@ -47,7 +47,8 @@ private:
 
     list_insert_cmd *gen_insert();
     struct invocation* exec_insert(redis_client& c);
-    struct invocation* exec_get(redis_client& c, string& prev);
+    struct invocation* exec_getNext(redis_client& c, string& prev);
+    struct invocation* exec_getIndex(redis_client& c, int index);
     struct invocation* exec_remove(redis_client& c, string &id);
 
 public:

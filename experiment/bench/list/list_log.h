@@ -54,6 +54,8 @@ public:
 
     string random_get();
 
+    int random_get_index();
+
     string random_get_removed();
 
     void insert(string &prev, string &name, string &content, int font, int size, int color,

@@ -89,6 +89,7 @@ struct invocation* list_generator::exec_getNext(redis_client& c, string& prev) {
     if (name.compare("null") == 0) {
         return NULL;
     }
+    list.write_op_executed++;
     invocation* inv = new invocation;
     inv->start_time = start;
     inv->end_time = end;
@@ -115,6 +116,7 @@ struct invocation* list_generator::exec_getIndex(redis_client& c, int index) {
     if (name.compare("null") == 0) {
         return NULL;
     }
+    list.write_op_executed++;
     invocation* inv = new invocation;
     inv->start_time = start;
     inv->end_time = end;
@@ -122,8 +124,16 @@ struct invocation* list_generator::exec_getIndex(redis_client& c, int index) {
     return inv;
 }
 
+struct invocation* list_generator::exec_dummy(redis_client& c) {
+    list.write_op_executed++;
+    return NULL;
+}
+
 struct invocation* list_generator::gen_and_exec(redis_client &c)
 {
+    if (list.write_op_executed < 100) {
+        return exec_dummy(c);
+    }
     int rand = intRand(0, 100);
     // TODO conflicts?
     if (rand <= 50) { 

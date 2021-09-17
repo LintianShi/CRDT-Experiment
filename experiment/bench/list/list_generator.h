@@ -50,6 +50,7 @@ private:
     struct invocation* exec_getNext(redis_client& c, string& prev);
     struct invocation* exec_getIndex(redis_client& c, int index);
     struct invocation* exec_remove(redis_client& c, string &id);
+    struct invocation* exec_dummy(redis_client& c);
 
 public:
     list_generator(const string &type, list_log &list, const string &p)

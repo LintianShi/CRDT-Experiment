@@ -131,7 +131,7 @@ public:
     static inline void set_pattern(const string &name)
     {
         apply_default();
-        total_ops = default_p->total_sec * op_per_sec / 5;
+        total_ops = default_p->total_sec * op_per_sec / 10;
         pattern_name = name;
         type = exp_type::pattern;
     }

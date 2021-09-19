@@ -28,7 +28,7 @@ private:
         double PR_REM_CR;
     };
 
-    static constexpr int MAX_ELE = 50;
+    static constexpr int MAX_ELE = 100;
     static constexpr int MAX_INIT = 1000;
     static constexpr int MAX_INCR = 500;
 

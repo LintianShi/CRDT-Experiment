@@ -131,7 +131,7 @@ struct invocation* list_generator::exec_dummy(redis_client& c) {
 
 struct invocation* list_generator::gen_and_exec(redis_client &c)
 {
-    if (list.write_op_executed < 100) {
+    if (list.write_op_executed < 0) {
         return exec_dummy(c);
     }
     int rand = intRand(0, 100);

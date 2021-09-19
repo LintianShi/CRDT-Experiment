@@ -32,6 +32,7 @@ constexpr int THREAD_PER_SERVER = 1;
 constexpr int TIME_OVERHEAD = 1;
 constexpr int TIME_READ = 1;
 
+
 using namespace std;
 // extern const char *ips[];
 
@@ -43,13 +44,15 @@ private:
 
     vector<thread> thds;
 
-    void conn_one_server_timed(const char *ip, int port)
+    void conn_one_server_timed(const char *ip, int port, std::chrono::system_clock::time_point &thd_start_time)
     {
         for (int i = 0; i < THREAD_PER_SERVER; ++i)
         {
-            thds.emplace_back([this, ip, port] {
+            thds.emplace_back([this, ip, port, thd_start_time] {
                 redis_client c(ip, port);
                 exec_trace trace;
+                this_thread::sleep_until(thd_start_time);
+            
                 auto start_time = chrono::steady_clock::now();
                 for (int t = 1; RUN_CONDITION; ++t)
                 {
@@ -67,7 +70,7 @@ public:
 
     void run()
     {
-        exp_env e(3, 2, 2, 1);
+        exp_env e(3, 1, 1, 1);
         // start servers
         // construct replicas
         // ...
@@ -76,10 +79,12 @@ public:
         string ips[3] = {"172.21.252.91", "172.21.252.92", "172.21.252.93"};
 
         auto start = chrono::steady_clock::now();
+        auto current_time = chrono::system_clock::now() + chrono::duration<int, std::milli>(2000);
+
         for (int i = 0; i < e.get_cluster_num(); i++) {
             for (int j = 0; j < e.get_replica_nums()[i]; j++) {
                 cout<<ips[i]<<endl;
-                conn_one_server_timed(ips[i].c_str(), BASE_PORT + j);
+                conn_one_server_timed(ips[i].c_str(), BASE_PORT + j, current_time);
             }
         }
         

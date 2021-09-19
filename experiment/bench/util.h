@@ -304,7 +304,8 @@ protected:
 
 public:
     atomic<int> write_op_generated{0};
-    volatile int write_op_executed = 0;
+    atomic<int> write_op_executed{0};
+    //volatile int write_op_executed = 0;
 
     virtual void write_logfiles() = 0;
     virtual void log_compare(redisReply_ptr &r1, redisReply_ptr &r2) = 0;

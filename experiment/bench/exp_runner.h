@@ -43,6 +43,7 @@ private:
     generator &gen;
 
     vector<thread> thds;
+    vector<exec_trace*> traces;
 
     void conn_one_server_timed(const char *ip, int port, std::chrono::system_clock::time_point &thd_start_time)
     {
@@ -50,17 +51,14 @@ private:
         {
             thds.emplace_back([this, ip, port, thd_start_time] {
                 redis_client c(ip, port);
-                exec_trace trace;
+                exec_trace* trace = new exec_trace;
                 this_thread::sleep_until(thd_start_time);
-            
-                auto start_time = chrono::steady_clock::now();
                 for (int t = 1; RUN_CONDITION; ++t)
                 {
-                    trace.insert(gen.gen_and_exec(c));
-                    auto tar_time = start_time + chrono::duration<double>(t * INTERVAL_TIME);
-                    this_thread::sleep_until(tar_time);
+                    trace->insert(gen.gen_and_exec(c));
                 }
-                trace.write_logfile(exp_setting::pattern_name, TOTAL_SERVERS, THREAD_PER_SERVER, exp_setting::op_per_sec);
+                traces.push_back(trace);
+                // trace->write_logfile(exp_setting::pattern_name, TOTAL_SERVERS, THREAD_PER_SERVER, exp_setting::op_per_sec);
             });
         }
     }
@@ -76,7 +74,7 @@ public:
         // ...
         // shutdown servers
         // clean log & rdb
-        string ips[3] = {"172.21.252.91", "172.21.252.92", "172.21.252.93"};
+        string ips[3] = {"172.24.81.133", "172.24.81.131", "172.24.81.135"};
 
         auto start = chrono::steady_clock::now();
         auto current_time = chrono::system_clock::now() + chrono::duration<int, std::milli>(2000);
@@ -122,6 +120,10 @@ public:
         auto time = chrono::duration_cast<chrono::duration<double>>(end - start).count();
         cout << time << " seconds, " << log.write_op_generated / time << " op/s\n";
         cout << log.write_op_executed << " operations actually executed on redis." << endl;
+        for (auto &t : traces) {
+            printf("%d\n", traces.size());
+            t->write_logfile(exp_setting::pattern_name, TOTAL_SERVERS, THREAD_PER_SERVER, exp_setting::op_per_sec);
+        }
     }
 };
 

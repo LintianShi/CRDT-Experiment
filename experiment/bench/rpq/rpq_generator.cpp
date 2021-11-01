@@ -17,11 +17,11 @@
 rpq_generator::rpq_op_gen_pattern& rpq_generator::get_pattern(const string& name)
 {
     static map<string, rpq_op_gen_pattern> patterns{{"default",
-                                                     {.PR_ADD = 0.31,
-                                                      .PR_INC = 0.25,
-                                                      .PR_MAX = 0.1,
-                                                      .PR_SCORE = 0.1,
-                                                      .PR_REM = 0.24,
+                                                     {.PR_ADD = 0.30,
+                                                      .PR_INC = 0.20,
+                                                      .PR_MAX = 0.15,
+                                                      .PR_SCORE = 0.15,
+                                                      .PR_REM = 0.20,
                                                       
                                                       .PR_ADD_CA = 0.15,
                                                       .PR_ADD_CR = 0.05,

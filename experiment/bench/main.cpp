@@ -24,12 +24,12 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    //rpq_exp re;
-    list_exp le;
+    rpq_exp re;
+    // list_exp le;
 
     exp_setting::compare = false;
-    //re.test_default_settings();
-    le.test_default_settings();
+    re.test_default_settings();
+    // le.test_default_settings();
 
     return 0;
 }

@@ -35,7 +35,7 @@ private:
     int total_server;
     string exec_path;
     vector<ssh_session> sessions;
-    string available_hosts[7] = {"n0.disalg.cn", "n1.disalg.cn", "n2.disalg.cn", "n3.disalg.cn", "n4.disalg.cn", "n5.disalg.cn", "n6.disalg.cn"};
+    string available_hosts[3] = {"public-cd-a3.disalg.cn", "public-cd-a4.disalg.cn", "public-cd-a5.disalg.cn"};
     string available_ports[5] = {"6379", "6380", "6381", "6382", "6383"};
     static void shell_exec(const char* cmd, bool sudo)
     {
@@ -58,7 +58,7 @@ private:
         ssh_channel channel;
         channel = ssh_channel_new(session);
         if (channel == NULL) {
-            printf("%s\n", "channel is NULL");
+            fprintf(stderr, "%s\n", "channel is NULL");
             return -1;
         }
 
@@ -97,6 +97,7 @@ private:
         ssh_channel_send_eof(channel);
         ssh_channel_close(channel);
         ssh_channel_free(channel);
+        return 0;
     }
 
     int connect_all() {
@@ -106,7 +107,7 @@ private:
             }
             
         }
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
         printf("connect all.\n");
         return 0;
     }
@@ -118,7 +119,7 @@ private:
 
         int port = 22;
         ssh_options_set(my_ssh_session, SSH_OPTIONS_HOST, host.c_str());
-        ssh_options_set(my_ssh_session, SSH_OPTIONS_USER, "root");
+        ssh_options_set(my_ssh_session, SSH_OPTIONS_USER, "shilintian");
         ssh_options_set(my_ssh_session, SSH_OPTIONS_PORT, &port);
 
         int rc;
@@ -131,7 +132,7 @@ private:
             return rc;
         }
 
-        rc = ssh_userauth_password(my_ssh_session, NULL, "disalg.root!");
+        rc = ssh_userauth_password(my_ssh_session, NULL, exp_env::sudo_pwd.c_str());
         if (rc != SSH_AUTH_SUCCESS)
         {
             fprintf(stderr, "Error authenticating with password: %s\n", ssh_get_error(my_ssh_session));
@@ -146,14 +147,19 @@ private:
     void start_servers()
     {
         for (int i = 0; i < sessions.size(); i++) {
+            printf("!!!\n");
             ssh_session session = sessions[i];
             string cmd = "./server.sh";
             for (int j = 0; j < replica_nums[i]; j++) {
                 cmd += " " + available_ports[j];
             }
-            ssh_exec(session, cmd.c_str());
+            if (ssh_exec(session, cmd.c_str()) != 0) {
+                printf("start failure\n");
+            } else {
+                printf("start success\n");
+            }
         }
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
         printf("start & connect.\n");
     }
 
@@ -177,7 +183,7 @@ private:
                 host_id++;
             }
         }
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
         printf("Replication construct complete.\n");
     }
 

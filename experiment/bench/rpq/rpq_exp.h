@@ -20,7 +20,7 @@ public:
     {
         // ! RPQ types: "o", "r", "rwf"
         add_type("rwf");
-        add_pattern("ardominant");
+        add_pattern("default");
     }
 };
 

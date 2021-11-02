@@ -7,7 +7,6 @@
 
 #include "../util.h"
 #include "rpq_cmd.h"
-#include "rpq_log.h"
 
 using namespace std;
 
@@ -28,34 +27,25 @@ private:
         double PR_REM_CR;
     };
 
-    static constexpr int MAX_ELE = 100;
+    static constexpr int MAX_ELE = 10;
     static constexpr int MAX_INIT = 1000;
     static constexpr int MAX_INCR = 500;
 
     rpq_op_gen_pattern &pattern;
-    record_for_collision<int> add, rem;
-    rpq_log &ele;
     const string &zt;
+    unordered_set<int> elements;
 
     static rpq_op_gen_pattern &get_pattern(const string &name);
-    rpq_add_cmd *gen_add();
-    struct invocation* normal_exec_add(redis_client& c);
-    struct invocation* exec_incrby(redis_client& c, int element, int value);
-    struct invocation* exec_rem(redis_client& c, int element);
-    struct invocation* exec_max(redis_client& c);
-    struct invocation* exec_score(redis_client& c, int element);
+    cmd* generate_op();
+    cmd* generate_add();
 
 
 public:
-    rpq_generator(const string &type, rpq_log &e, const string &p)
-        : zt(type), ele(e), pattern(get_pattern(p))
-    {
-        add_record(add);
-        add_record(rem);
-        start_maintaining_records();
-    }
+    rpq_generator(const string &type, const string &p)
+        : zt(type), pattern(get_pattern(p)) {}
 
-    struct invocation* gen_and_exec(redis_client &c) override;
+    void init();
+    struct invocation* exec_op(redis_client &c, cmd* op) override;
 };
 
 #endif  // BENCH_RPQ_GENERATOR_H

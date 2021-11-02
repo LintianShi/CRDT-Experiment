@@ -25,7 +25,7 @@
 #endif
 
 constexpr int THREAD_PER_SERVER = 1;
-#define RUN_CONDITION log.write_op_executed < exp_setting::total_ops
+#define RUN_CONDITION gen.write_op_executed < exp_setting::total_ops
 
 // time in seconds
 #define INTERVAL_TIME ((double)TOTAL_SERVERS * THREAD_PER_SERVER / exp_setting::op_per_sec)
@@ -39,90 +39,79 @@ using namespace std;
 class exp_runner
 {
 private:
-    rdt_log &log;
     generator &gen;
+    exp_env &env;
 
     vector<thread> thds;
     vector<exec_trace*> traces;
 
-    void conn_one_server_timed(const char *ip, int port, std::chrono::system_clock::time_point &thd_start_time)
+    void conn_one_server_timed(const char* ip, int port)
     {
         for (int i = 0; i < THREAD_PER_SERVER; ++i)
         {
-            thds.emplace_back([this, ip, port, thd_start_time] {
+            thds.emplace_back([this, ip, port] {
                 redis_client c(ip, port);
                 exec_trace* trace = new exec_trace;
-                this_thread::sleep_until(thd_start_time);
                 for (int t = 1; RUN_CONDITION; ++t)
                 {
-                    trace->insert(gen.gen_and_exec(c));
+                    trace->insert(gen.exec_op(c, gen.get_op()));
                 }
                 traces.push_back(trace);
-                // trace->write_logfile(exp_setting::pattern_name, TOTAL_SERVERS, THREAD_PER_SERVER, exp_setting::op_per_sec);
             });
         }
     }
 
 public:
-    exp_runner(rdt_log &log, generator &gen) : gen(gen), log(log) {}
+    exp_runner(generator &gen, exp_env &env) : gen(gen), env(env) {}
 
     void run()
     {
-        exp_env e(3, 1, 1, 1);
-        // start servers
-        // construct replicas
-        // ...
-        // shutdown servers
-        // clean log & rdb
         string ips[3] = {"172.24.81.133", "172.24.81.131", "172.24.81.135"};
-
-        auto start = chrono::steady_clock::now();
-        auto current_time = chrono::system_clock::now() + chrono::duration<int, std::milli>(2000);
-
-        for (int i = 0; i < e.get_cluster_num(); i++) {
-            for (int j = 0; j < e.get_replica_nums()[i]; j++) {
-                cout<<ips[i]<<endl;
-                conn_one_server_timed(ips[i].c_str(), BASE_PORT + j, current_time);
+        // vector<redis_client> clients;
+        for (int i = 0; i < env.get_cluster_num(); i++) {
+            for (int j = 0; j < env.get_replica_nums()[i]; j++) {
+                conn_one_server_timed(ips[i].c_str(), BASE_PORT + j);
             }
         }
         
-        thread progress_thread([this] {
-            constexpr int barWidth = 50;
-            double progress;
-            while (RUN_CONDITION)
-            {
-                progress = log.write_op_executed / ((double)exp_setting::total_ops);
-                cout << "\r[";
-                int pos = barWidth * progress;
-                for (int i = 0; i < barWidth; ++i)
-                {
-                    if (i < pos)
-                        cout << "=";
-                    else if (i == pos)
-                        cout << ">";
-                    else
-                        cout << " ";
-                }
-                cout << "] " << (int)(progress * 100) << "%" << flush;
-                this_thread::sleep_for(chrono::seconds(1));
-            }
-            cout << "\r[";
-            for (int i = 0; i < barWidth; ++i)
-                cout << "=";
-            cout << "] 100%" << endl;
-        });
+        // thread progress_thread([this] {
+        //     constexpr int barWidth = 50;
+        //     double progress;
+        //     while (RUN_CONDITION)
+        //     {
+        //         progress = gen.write_op_executed / ((double)exp_setting::total_ops);
+        //         cout << "\r[";
+        //         int pos = barWidth * progress;
+        //         for (int i = 0; i < barWidth; ++i)
+        //         {
+        //             if (i < pos)
+        //                 cout << "=";
+        //             else if (i == pos)
+        //                 cout << ">";
+        //             else
+        //                 cout << " ";
+        //         }
+        //         cout << "] " << (int)(progress * 100) << "%" << flush;
+        //         this_thread::sleep_for(chrono::seconds(1));
+        //     }
+        //     cout << "\r[";
+        //     for (int i = 0; i < barWidth; ++i)
+        //         cout << "=";
+        //     cout << "] 100%" << endl;
+        // });
 
+        auto start = chrono::steady_clock::now();
         for (auto &t : thds)
             if (t.joinable()) t.join();
-        if (progress_thread.joinable()) progress_thread.join();
+        // if (progress_thread.joinable()) progress_thread.join();
 
         auto end = chrono::steady_clock::now();
         auto time = chrono::duration_cast<chrono::duration<double>>(end - start).count();
-        cout << time << " seconds, " << log.write_op_generated / time << " op/s\n";
-        cout << log.write_op_executed << " operations actually executed on redis." << endl;
+        cout << time << " seconds, " << gen.write_op_executed / time << " op/s\n";
+        cout << gen.write_op_executed << " operations actually executed on redis." << endl;
+        outputTrace(traces);
         for (auto &t : traces) {
-            printf("%d\n", traces.size());
-            t->write_logfile(exp_setting::pattern_name, TOTAL_SERVERS, THREAD_PER_SERVER, exp_setting::op_per_sec);
+            delete t;
         }
     }
 };

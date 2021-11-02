@@ -17,11 +17,11 @@
 rpq_generator::rpq_op_gen_pattern& rpq_generator::get_pattern(const string& name)
 {
     static map<string, rpq_op_gen_pattern> patterns{{"default",
-                                                     {.PR_ADD = 0.30,
+                                                     {.PR_ADD = 0.35,
                                                       .PR_INC = 0.20,
-                                                      .PR_MAX = 0.15,
-                                                      .PR_SCORE = 0.15,
-                                                      .PR_REM = 0.20,
+                                                      .PR_MAX = 0.10,
+                                                      .PR_SCORE = 0.10,
+                                                      .PR_REM = 0.25,
                                                       
                                                       .PR_ADD_CA = 0.15,
                                                       .PR_ADD_CR = 0.05,
@@ -43,205 +43,122 @@ rpq_generator::rpq_op_gen_pattern& rpq_generator::get_pattern(const string& name
     return patterns[name];
 }
 
-struct invocation* rpq_generator::normal_exec_add(redis_client& c)
+void rpq_generator::init()
 {
-    ele.write_op_executed++;
-    rpq_add_cmd* op_add = gen_add();
-    auto start = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    redisReply_ptr reply = c.exec(op_add); 
-    auto end = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    if (reply == NULL || reply->type == 6) {
-        return NULL;
+    for (int i = 0; i < exp_setting::total_ops; i++) {
+        workload.push_back(generate_op());
     }
-    invocation* inv = new invocation;
-    inv->start_time = start;
-    inv->end_time = end;
-    string operation = "add," + to_string(op_add->element) + "," + to_string(op_add->value) + ",null";
-    inv->operation = operation;
-    return inv;
 }
 
-struct invocation* rpq_generator::exec_incrby(redis_client& c, int element, int value)
+struct invocation* rpq_generator::exec_op(redis_client &c, cmd* op) 
 {
-    ele.write_op_executed++;
-    auto start = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    redisReply_ptr reply = c.exec(new rpq_incrby_cmd(zt, ele, element, value));
-    auto end = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    if (reply == NULL || reply->type == 6) {
-        return NULL;
-    }
-    invocation* inv = new invocation;
-    inv->start_time = start;
-    inv->end_time = end;
-    string operation = "incrby," + to_string(element) + "," + to_string(value) + ",null";
-    inv->operation = operation;
-    return inv;
-}
-
-struct invocation* rpq_generator::exec_rem(redis_client& c, int element) 
-{
-    ele.write_op_executed++;
-    auto start = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    redisReply_ptr reply = c.exec(new rpq_remove_cmd(zt, ele, element));
-    auto end = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    if (reply == NULL || reply->type == 6) {
-        return NULL;
-    }
-    invocation* inv = new invocation;
-    inv->start_time = start;
-    inv->end_time = end;
-    string operation = "rem," + to_string(element) + ",null";
-    inv->operation = operation;
-    return inv;
-}
-
-struct invocation* rpq_generator::exec_max(redis_client& c) 
-{
-    //cout<<"max\n";
-    ele.write_op_executed++;
-    auto start = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    redisReply_ptr reply = c.exec(new rpq_max_cmd(zt, ele));
-    auto end = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    invocation* inv = new invocation;
-    inv->start_time = start;
-    inv->end_time = end;
-    if (reply->elements == 2) {
-        string ret1 = reply->element[0]->str;
-        string ret2 = reply->element[1]->str;
-        string operation = "max," + ret1 + " " + ret2;
-        inv->operation = operation;
-    } else {
-        string ret = "null";
-        string operation = "max," + ret;
-        inv->operation = operation;
-    }
-    return inv;
-}
-
-struct invocation* rpq_generator::exec_score(redis_client& c, int element) 
-{
-    //cout<<"score\n";
-    ele.write_op_executed++;
-    auto start = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    redisReply_ptr reply = c.exec(new rpq_score_cmd(zt, ele, element));
-    auto end = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    invocation* inv = new invocation;
-    inv->start_time = start;
-    inv->end_time = end;
-
-    if (reply->type == 1)
-    {
-        string operation = "score," + to_string(element) + "," + reply->str;
-        inv->operation = operation;
-    }
-    else 
-    {
-        string operation = "score," + to_string(element) + "," + "null";
-        inv->operation = operation;
-    }
-    
-    return inv;
-}
-
-struct invocation* rpq_generator::gen_and_exec(redis_client& c)
-{
-    int e;
-    double rand = decide();
-    if (ele.write_op_executed < MAX_ELE / 2) {
-        return normal_exec_add(c);
-    }
-
-    if (rand <= PA) { 
-        return normal_exec_add(c);
-    }
-    else if (rand <= PI)
-    {
-        e = ele.random_get();
-        if (e == -1) 
-        {
-            return normal_exec_add(c);
+    redisReply_ptr reply = c.exec(op);
+    delete op;
+    if (op->get_op_name() == "add") {
+        if (reply == NULL || reply->type == 6) {
+            return NULL;
         }
-        int d = intRand(-MAX_INCR, MAX_INCR);
-        return exec_incrby(c, e, d);
-        //redisReply_ptr reply = c.exec(new rpq_incrby_cmd(zt, ele, e, d));
+        invocation* inv = new invocation;
+        string operation = "add," + to_string(((rpq_add_cmd*)op) -> element) + "," + to_string(((rpq_add_cmd*)op) -> value) + ",null";
+        inv->operation = operation;
+        return inv;
     }
-    else if (rand <= PM)
+    else if (op->get_op_name() == "incrby")
     {
-        //cout<<"m\n";
-        return exec_max(c);
-    } else if (rand <= PS)
-    {
-        //cout<<"s\n";
-        e = ele.random_get();
-        if (e == -1) 
-            return normal_exec_add(c);
-        return exec_score(c, e);
+        if (reply == NULL || reply->type == 6) {
+            return NULL;
+        }
+        invocation* inv = new invocation;
+        string operation = "incrby," + to_string(((rpq_incrby_cmd*)op) -> element) + "," + to_string(((rpq_incrby_cmd*)op) -> value) + ",null";
+        inv->operation = operation;
+        return inv;
     }
-    else
+    else if (op->get_op_name() == "rem")
     {
-        // double conf = decide();
-        // if (conf < PRA)
-        // {
-        //     e = add.get(-1);
-        //     if (e == -1)
-        //     {
-        //         e = ele.random_get();
-        //         if (e == -1) 
-        //         {
-        //             return normal_exec_add(c);
-        //         }
-        //     }
-        //     rem.add(e);
-        // }
-        // else if (conf < PRR)
-        // {
-        //     e = rem.get(-1);
-        //     if (e == -1)
-        //     {
-        //         e = ele.random_get();
-        //         if (e == -1) {
-        //             return normal_exec_add(c);
-        //         }
-        //         rem.add(e);
-        //     }
-        // }
-        // else
-        // {
-            e = ele.random_get();
-            if (e == -1) {
-                return normal_exec_add(c);
-            }
-            rem.add(e);
-        // }
-        return exec_rem(c, e);
-        //redisReply_ptr reply = c.exec(new rpq_remove_cmd(zt, ele, e));
+        if (reply == NULL || reply->type == 6) {
+            return NULL;
+        }
+        invocation* inv = new invocation;
+        string operation = "rem," + to_string(((rpq_rem_cmd*)op) -> element) + ",null";
+        inv->operation = operation;
+        return inv;
+    }
+    else if (op->get_op_name() == "score")
+    {
+        invocation* inv = new invocation;
+        if (reply->type == 1)
+        {
+            string operation = "score," + to_string(((rpq_score_cmd*)op) -> element) + "," + reply->str;
+            inv->operation = operation;
+        }
+        else 
+        {
+            string operation = "score," + to_string(((rpq_score_cmd*)op) -> element) + "," + "null";
+            inv->operation = operation;
+        }
+        return inv;
+    }
+    else if (op->get_op_name() == "max")
+    {
+        invocation* inv = new invocation;
+        if (reply->elements == 2) {
+            string ret1 = reply->element[0]->str;
+            string ret2 = reply->element[1]->str;
+            string operation = "max," + ret1 + " " + ret2;
+            inv->operation = operation;
+        } else {
+            string ret = "null";
+            string operation = "max," + ret;
+            inv->operation = operation;
+        }
+        return inv;
     }
     return NULL;
 }
-rpq_add_cmd* rpq_generator::gen_add()
+
+cmd* rpq_generator::generate_op()
+{
+    int e;
+    double rand = decide();
+    if (rand <= PA) { 
+        return generate_add();
+    }
+    else if (rand <= PI)
+    {
+        e = intRand(MAX_ELE);
+        if (e == -1) 
+        {
+            return generate_add();
+        }
+        int d = intRand(-MAX_INCR, MAX_INCR);
+        return new rpq_incrby_cmd(zt, e, d);
+    }
+    else if (rand <= PM)
+    {
+        return new rpq_max_cmd(zt);
+    } 
+    else if (rand <= PS)
+    {
+        e = intRand(MAX_ELE);
+        if (e == -1) 
+            return generate_add();
+        return new rpq_score_cmd(zt, e);
+    }
+    else
+    {
+        e = intRand(MAX_ELE);
+        if (e == -1) {
+            return generate_add();
+        }
+        return new rpq_rem_cmd(zt, e);
+    }
+}
+
+cmd* rpq_generator::generate_add()
 {
     int e;
     int d = intRand(0, MAX_INIT);
-    //double conf = decide();
-    // if (conf < PAA)
-    // {
-    //     e = add.get(-1);
-    //     if (e == -1)
-    //     {
-    //         e = intRand(MAX_ELE);
-    //         add.add(e);
-    //     }
-    // }
-    // else if (conf < PAR)
-    // {
-    //     e = rem.get(-1);
-    //     if (e == -1) e = intRand(MAX_ELE);
-    //     add.add(e);
-    // }
-    // else
-    // {
     e = intRand(MAX_ELE);
-    //     add.add(e);
-    // }
-    return new rpq_add_cmd(zt, ele, e, d);
+    elements.insert(e);
+    return new rpq_add_cmd(zt, e, d);
 }

@@ -35,13 +35,12 @@
 
 #endif
 
-#define MAX_TIME_COLISION exp_setting::delay
-constexpr int SPLIT_NUM = 10;
-#define SLP_TIME_MICRO (MAX_TIME_COLISION * 1000 / SPLIT_NUM)
-
 using namespace std;
 
 int intRand(int min, int max);
+
+class exec_trace;
+void outputTrace(vector<exec_trace*> &traces);
 
 static inline int intRand(int max) { return intRand(0, max - 1); }
 
@@ -143,6 +142,7 @@ class cmd
 {
 protected:
     ostringstream stream;
+    string op_name;
 
     cmd() = default;
 
@@ -169,86 +169,22 @@ public:
         auto r = c.exec(stream.str());
         if (r->type != REDIS_REPLY_ERROR) handle_redis_return(r);
     }
+
+    string get_op_name() {
+        return op_name;
+    }
 };
 
 class generator
 {
-private:
-    class c_record
-    {
-    public:
-        virtual void inc_rem() = 0;
-    };
-
-protected:
-    template <class T>
-    class record_for_collision : public c_record
-    {
-    private:
-        vector<T> v[SPLIT_NUM];
-        int cur = 0;
-        unordered_set<T> h;
-        mutex mtx;
-
-    public:
-        void add(T &name)
-        {
-            lock_guard<mutex> lk(mtx);
-            if (h.find(name) == h.end())
-            {
-                h.emplace(name);
-                v[cur].emplace_back(name);
-            }
-        }
-
-        T get(T &&fail)
-        {
-            lock_guard<mutex> lk(mtx);
-            if (h.empty()) return fail;
-            int b = (cur + intRand(SPLIT_NUM)) % SPLIT_NUM;
-            while (v[b].empty())
-                b = (b + 1) % SPLIT_NUM;
-            return v[b][intRand(static_cast<const int>(v[b].size()))];
-        }
-
-        void inc_rem() override
-        {
-            lock_guard<mutex> lk(mtx);
-            cur = (cur + 1) % SPLIT_NUM;
-            for (auto &n : v[cur])
-                h.erase(n);
-            v[cur].clear();
-        }
-    };
-
-private:
-    vector<c_record *> records;
-    thread maintainer;
-    volatile bool running = true;
-
-protected:
-    void add_record(c_record &r) { records.emplace_back(&r); }
-
-    void start_maintaining_records()
-    {
-        maintainer = thread([this] {
-            while (running)
-            {
-                this_thread::sleep_for(chrono::microseconds(SLP_TIME_MICRO));
-                for (auto &r : records)
-                    r->inc_rem();
-            }
-        });
-    }
-
-    ~generator()
-    {
-        running = false;
-        if (maintainer.joinable()) maintainer.join();
-    }
-
 public:
-    virtual struct invocation* gen_and_exec(redis_client &c) = 0;
+    atomic<int> write_op_executed{0};
+    vector<cmd*> workload;
+    virtual struct invocation* exec_op(redis_client &c, cmd* op) = 0;
+    cmd* get_op()
+    {
+        return workload[write_op_executed++];
+    }
 };
 
 class rdt_log
@@ -296,8 +232,7 @@ protected:
         stream << "/" << exp_setting::round_num;
         bench_mkdir(stream.str());
 
-        stream << "/" << type << "_" << TOTAL_SERVERS << "," << exp_setting::op_per_sec << ",("
-               << exp_setting::delay << "," << exp_setting::delay_low << ")";
+        stream << "/" << type << "_" << TOTAL_SERVERS << "," << exp_setting::op_per_sec;
         dir = stream.str();
         bench_mkdir(dir);
     }
@@ -305,7 +240,6 @@ protected:
 public:
     atomic<int> write_op_generated{0};
     atomic<int> write_op_executed{0};
-    //volatile int write_op_executed = 0;
 
     virtual void write_logfiles() = 0;
     virtual void log_compare(redisReply_ptr &r1, redisReply_ptr &r2) = 0;
@@ -373,57 +307,11 @@ public:
             pattern_fix("default", t);
     }
 
-    void test_delay(int round)
-    {
-        for (int delay = rdt_exp_setting.delay_e.start; delay <= rdt_exp_setting.delay_e.end;
-             delay += rdt_exp_setting.delay_e.step)
-            for (auto &type : rdt_types)
-                delay_fix(delay, round, type);
-    }
-
-    void test_speed(int round)
-    {
-        for (int speed = rdt_exp_setting.speed_e.start; speed <= rdt_exp_setting.speed_e.end;
-             speed += rdt_exp_setting.speed_e.step)
-            for (auto &type : rdt_types)
-                speed_fix(speed, round, type);
-    }
-    void delay_fix(int delay, int round, const string &type)
-    {
-        exp_setter s(*this, type);
-        exp_setting::set_delay(round, delay, delay / 5);
-        exp_impl(type);
-    }
-
-    void speed_fix(int speed, int round, const string &type)
-    {
-        exp_setter s(*this, type);
-        exp_setting::set_speed(round, speed);
-        exp_impl(type);
-    }
-
     void pattern_fix(const string &pattern, const string &type)
     {
         exp_setter s(*this, type);
         exp_setting::set_pattern(pattern);
         exp_impl(type, pattern);
-    }
-
-    void exp_start_all(int rounds)
-    {
-        auto start = chrono::steady_clock::now();
-
-        test_patterns();
-
-        for (int i = 0; i < rounds; i++)
-        {
-            test_delay(i);
-            test_speed(i);
-        }
-
-        auto end = chrono::steady_clock::now();
-        auto time = chrono::duration_cast<chrono::duration<double>>(end - start).count();
-        cout << "total time: " << time << " seconds" << endl;
     }
 };
 
@@ -450,7 +338,11 @@ public:
             log.push_back(inv);
     }
 
-    void write_logfile(string pattern, int server_num, int thread_per_server, int op_per_sec);
+    int size() {
+        return log.size();
+    }
+
+    string toString();
 
     ~exec_trace() {
         for (invocation* i : log) {

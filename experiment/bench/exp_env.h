@@ -35,7 +35,7 @@ private:
     int total_server;
     string exec_path;
     vector<ssh_session> sessions;
-    string available_hosts[3] = {"public-cd-a3.disalg.cn", "public-cd-a4.disalg.cn", "public-cd-a5.disalg.cn"};
+    string available_hosts[3] = {"172.24.81.133", "172.24.81.131", "172.24.81.135"};
     string available_ports[5] = {"6379", "6380", "6381", "6382", "6383"};
     static void shell_exec(const char* cmd, bool sudo)
     {
@@ -147,7 +147,6 @@ private:
     void start_servers()
     {
         for (int i = 0; i < sessions.size(); i++) {
-            printf("!!!\n");
             ssh_session session = sessions[i];
             string cmd = "./server.sh";
             for (int j = 0; j < replica_nums[i]; j++) {

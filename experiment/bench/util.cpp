@@ -16,8 +16,6 @@ const char *exp_setting::alg_type;
 const char *exp_setting::rdt_type;
 exp_setting::default_setting *exp_setting::default_p = nullptr;
 
-int exp_setting::delay;
-int exp_setting::delay_low;
 int exp_setting::total_servers;
 int exp_setting::total_ops;
 int exp_setting::op_per_sec;
@@ -126,24 +124,28 @@ redisReply_ptr redis_client::exec()
     return redisReply_ptr(static_cast<redisReply *>(r), freeReplyObject);
 }
 
-void exec_trace::write_logfile(string pattern, int server_num, int thread_per_server, int op_per_sec)
-{
-    string trace_dir = "../result/" + exp_setting::name + "_";
-    time_t myt = time(NULL);
-    trace_dir += pattern + "_" + to_string(server_num) + "_" + to_string(thread_per_server) + "_" + to_string(op_per_sec) + "_" + to_string(myt);
-    struct stat sb;
-    if (!(stat(trace_dir.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode))) {
-        mkdir(trace_dir.c_str(), S_IRWXU | S_IRGRP | S_IROTH);
-    }
-
-    ostringstream stream;
-    auto timeNow = chrono::duration_cast<chrono::nanoseconds>(chrono::system_clock::now().time_since_epoch()).count();
-    stream << trace_dir << "/" << to_string(timeNow) + ".trc";
-    ofstream fout(stream.str(), ios::out | ios::trunc);
+string exec_trace::toString() {
+    string result = "";
     for (int i = 0; i < log.size(); i++) {
-        string output = to_string(log[i]->start_time) + "," + to_string(log[i]->end_time) + "," + log[i]->operation + "\n";
-        fout<<output;
+        string output = "\n0,0," + log[i]->operation;
+        result += output;
+    }
+    return result;
+}
+
+void outputTrace(vector<exec_trace*> &traces) {
+    string filepath = "../result/";
+    auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    string alg = exp_setting::alg_type;
+    string rdt = exp_setting::rdt_type;
+    filepath +=  alg + "_" + rdt + "_" + exp_setting::pattern_name + "_" + to_string(time) + ".trc";
+    ofstream fout(filepath, ios::out | ios::trunc);
+    fout<<traces.size();
+    for (auto &t : traces) {
+        fout<<" "<<t->size();
+    }
+    for (auto &t : traces) {
+        fout<<t->toString();
     }
     fout.close();
-    trace_signature++;
 }

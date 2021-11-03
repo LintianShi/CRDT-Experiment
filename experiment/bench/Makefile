@@ -1,4 +1,5 @@
 CC = g++
+# CPPFLAGS =  -g -fsanitize=address -std=c++14 -Wno-unused-result -O3
 CPPFLAGS = -std=c++14 -Wno-unused-result -O3
 
 # CPPFILES = $(shell find . -maxdepth 2 -name "*.cpp")
@@ -18,6 +19,9 @@ include $(INCLUDES)
 
 bench: $(OBJS)
 	$(CC) -o bench_start $^ -pthread -lhiredis -lssh
+# $(CC) -o bench_start -g $^ -pthread -lhiredis -lssh -fsanitize=address
+
+
 	
 .PHONY: stop clean run
 

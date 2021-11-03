@@ -9,7 +9,7 @@
 
 exp_setting::default_setting rpq_exp::rpq_setting{
     .name = "Rpq",
-    .total_sec = 30,
+    .total_sec = 14,
     .total_servers = 3,
     .op_per_sec = 1
 };
@@ -17,10 +17,11 @@ exp_setting::default_setting rpq_exp::rpq_setting{
 void rpq_exp::exp_impl(const string& type, const string& pattern)
 {
     exp_env env(3, 1, 1, 1);
-    for (int i = 0; i < 3; i++) {
-        rpq_generator gen(type, pattern);
+    for (int i = 0; i < 2; i++) {
+        rpq_generator gen(type, pattern, i);
         gen.init();
         exp_runner runner(gen, env);
-        runner.run();   
+        runner.run(); 
+        this_thread::sleep_for(chrono::milliseconds(100));
     }
 }

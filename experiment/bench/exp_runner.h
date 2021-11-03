@@ -43,7 +43,7 @@ private:
     exp_env &env;
 
     vector<thread> thds;
-    vector<exec_trace*> traces;
+    execution_trace traces;
 
     void conn_one_server_timed(const char* ip, int port)
     {
@@ -51,12 +51,13 @@ private:
         {
             thds.emplace_back([this, ip, port] {
                 redis_client c(ip, port);
-                exec_trace* trace = new exec_trace;
+                thread_trace* trace = new thread_trace;
                 for (int t = 1; RUN_CONDITION; ++t)
                 {
                     trace->insert(gen.exec_op(c, gen.get_op()));
+                    //this_thread::sleep_for(chrono::milliseconds(1));
                 }
-                traces.push_back(trace);
+                traces.add(trace);
             });
         }
     }
@@ -66,7 +67,7 @@ public:
 
     void run()
     {
-        string ips[3] = {"172.24.81.133", "172.24.81.131", "172.24.81.135"};
+        string ips[3] = {"172.24.81.131", "172.24.81.133", "172.24.81.135"};
         // vector<redis_client> clients;
         for (int i = 0; i < env.get_cluster_num(); i++) {
             for (int j = 0; j < env.get_replica_nums()[i]; j++) {
@@ -109,10 +110,7 @@ public:
         auto time = chrono::duration_cast<chrono::duration<double>>(end - start).count();
         cout << time << " seconds, " << gen.write_op_executed / time << " op/s\n";
         cout << gen.write_op_executed << " operations actually executed on redis." << endl;
-        outputTrace(traces);
-        for (auto &t : traces) {
-            delete t;
-        }
+        traces.outputTrace();
     }
 };
 

@@ -13,6 +13,7 @@ compile_commands.json
 .clangd
 .cache
 *.trc
+*.zip
 
 bench_start
 ozlog

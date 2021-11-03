@@ -104,7 +104,9 @@ void redis_client::add_pipeline_cmd(cmd *command)
 }
 
 redisReply_ptr redis_client::exec(const cmd &cmd) { return exec(cmd.stream.str()); }
-redisReply_ptr redis_client::exec(cmd* cmd) { return exec((*cmd).stream.str()); }
+redisReply_ptr redis_client::exec(cmd* cm) { 
+    return exec(cm->stream.str());
+}
 
 void redis_client::reply_error(const string &cmd)
 {
@@ -124,16 +126,19 @@ redisReply_ptr redis_client::exec()
     return redisReply_ptr(static_cast<redisReply *>(r), freeReplyObject);
 }
 
-string exec_trace::toString() {
+string thread_trace::toString() {
     string result = "";
     for (int i = 0; i < log.size(); i++) {
+        if (log[i] == NULL) {
+            continue;
+        }
         string output = "\n0,0," + log[i]->operation;
         result += output;
     }
     return result;
 }
 
-void outputTrace(vector<exec_trace*> &traces) {
+void execution_trace::outputTrace() {
     string filepath = "../result/";
     auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     string alg = exp_setting::alg_type;

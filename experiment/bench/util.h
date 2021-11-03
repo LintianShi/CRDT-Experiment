@@ -39,9 +39,6 @@ using namespace std;
 
 int intRand(int min, int max);
 
-class exec_trace;
-void outputTrace(vector<exec_trace*> &traces);
-
 static inline int intRand(int max) { return intRand(0, max - 1); }
 
 static inline bool boolRand() { return intRand(0, 1); }
@@ -124,7 +121,7 @@ public:
 
     redisReply_ptr exec(const cmd &cmd);
 
-    redisReply_ptr exec(cmd* cmd);
+    redisReply_ptr exec(cmd* cm);
 
     ~redis_client()
     {
@@ -177,13 +174,34 @@ public:
 
 class generator
 {
+protected:
+    int round;
 public:
     atomic<int> write_op_executed{0};
+    atomic<int> workload_pointer{0};
     vector<cmd*> workload;
     virtual struct invocation* exec_op(redis_client &c, cmd* op) = 0;
     cmd* get_op()
     {
-        return workload[write_op_executed++];
+        // if (workload_pointer >= workload.size() - 3) {
+        //     write_op_executed++;
+        //     return NULL;
+        // }
+        return workload[workload_pointer++];
+    }
+
+    generator(int r) : round(r) {;}
+
+    generator(const generator&) = delete;
+
+    generator &operator=(const generator&) = delete;
+
+    ~generator() {
+        for (cmd* &c : workload) {
+            if (c != NULL) {
+                delete c;
+            } 
+        }
     }
 };
 
@@ -323,15 +341,12 @@ struct invocation
 };
 
 
-class exec_trace
+class thread_trace
 { 
 private:
     vector<invocation*> log;
-    int trace_signature;
 public:
-    exec_trace() {
-        trace_signature = -1;
-    }
+    thread_trace(){}
 
     void insert(invocation* inv) {
         if (inv != NULL)
@@ -344,9 +359,35 @@ public:
 
     string toString();
 
-    ~exec_trace() {
+    thread_trace(const thread_trace&) = delete;
+
+    thread_trace &operator=(const thread_trace&) = delete;
+
+    ~thread_trace() {
         for (invocation* i : log) {
-            delete i;
+            if (i != NULL)
+                delete i;
+        }
+    }
+};
+
+class execution_trace {
+private:
+    mutex m;
+    vector<thread_trace*> traces;
+public:
+    void outputTrace();
+    void add(thread_trace* trace) {
+        {
+            m.lock();
+            traces.push_back(trace);
+            m.unlock();
+        } 
+    }
+    ~execution_trace() {
+        for (auto &t : traces) {
+            if (t != NULL)
+                delete t;
         }
     }
 };

@@ -27,7 +27,7 @@ private:
         double PR_REM_CR;
     };
 
-    static constexpr int MAX_ELE = 10;
+    static constexpr int MAX_ELE = 6;
     static constexpr int MAX_INIT = 1000;
     static constexpr int MAX_INCR = 500;
 
@@ -38,11 +38,12 @@ private:
     static rpq_op_gen_pattern &get_pattern(const string &name);
     cmd* generate_op();
     cmd* generate_add();
+    cmd* generate_dummy();
 
 
 public:
-    rpq_generator(const string &type, const string &p)
-        : zt(type), pattern(get_pattern(p)) {}
+    rpq_generator(const string &type, const string &p, int r)
+        : zt(type), pattern(get_pattern(p)), generator(r) {}
 
     void init();
     struct invocation* exec_op(redis_client &c, cmd* op) override;

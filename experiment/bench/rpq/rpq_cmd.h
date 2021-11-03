@@ -9,10 +9,10 @@
 
 class rpq_cmd : public cmd
 {
-protected:
-    rpq_cmd(const string &type, const char *op)
+public:
+    rpq_cmd(const string &type, const char *op, int round)
     {
-        stream << type << "z" << op << " " << type << "rpq";
+        stream << type << "z" << op << " " << type << "rpq" << round;
         op_name = op;
     }
 
@@ -24,8 +24,8 @@ class rpq_add_cmd : public rpq_cmd
 public:
     int element;
     int value;
-    rpq_add_cmd(const string &type, int element, int value)
-        : rpq_cmd(type, "add"), element(element), value(value)
+    rpq_add_cmd(const string &type, int element, int value, int round)
+        : rpq_cmd(type, "add", round), element(element), value(value)
     {
         add_args(element, value);
     }
@@ -37,8 +37,8 @@ public:
     int element;
     int value;
 
-    rpq_incrby_cmd(const string &type, int element, int value)
-        : rpq_cmd(type, "incrby"), element(element), value(value)
+    rpq_incrby_cmd(const string &type, int element, int value, int round)
+        : rpq_cmd(type, "incrby", round), element(element), value(value)
     {
         add_args(element, value);
     }
@@ -49,8 +49,8 @@ class rpq_rem_cmd : public rpq_cmd
 public:
     int element;
 
-    rpq_rem_cmd(const string &type, int element)
-        : rpq_cmd(type, "rem"), element(element)
+    rpq_rem_cmd(const string &type, int element, int round)
+        : rpq_cmd(type, "rem", round), element(element)
     {
         add_args(element);
     }
@@ -59,15 +59,15 @@ public:
 class rpq_max_cmd : public rpq_cmd
 {
 public:
-    rpq_max_cmd(const string &type) : rpq_cmd(type,"max") {}
+    rpq_max_cmd(const string &type, int round) : rpq_cmd(type,"max", round) {}
 };
 
 class rpq_score_cmd : public rpq_cmd
 {    
 public:
     int element;
-    rpq_score_cmd(const string &type, int element)
-         : rpq_cmd(type, "score"), element(element) 
+    rpq_score_cmd(const string &type, int element, int round)
+         : rpq_cmd(type, "score", round), element(element) 
          {
             add_args(element);
          }

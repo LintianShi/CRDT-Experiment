@@ -45,15 +45,22 @@ rpq_generator::rpq_op_gen_pattern& rpq_generator::get_pattern(const string& name
 
 void rpq_generator::init()
 {
-    for (int i = 0; i < exp_setting::total_ops; i++) {
-        workload.push_back(generate_op());
+    for (int i = 0; i < 30; i++) {
+        workload.emplace_back(generate_dummy());
+    }
+    for (int i = 0; i < exp_setting::total_ops * 3; i++) {
+        cmd* c = generate_op();
+        if (c != NULL)
+            workload.emplace_back(c);
     }
 }
 
 struct invocation* rpq_generator::exec_op(redis_client &c, cmd* op) 
 {
+    if (op == NULL || op->get_op_name() == "dummy") {
+        return NULL;
+    }
     redisReply_ptr reply = c.exec(op);
-    delete op;
     if (op->get_op_name() == "add") {
         if (reply == NULL || reply->type == 6) {
             return NULL;
@@ -61,6 +68,7 @@ struct invocation* rpq_generator::exec_op(redis_client &c, cmd* op)
         invocation* inv = new invocation;
         string operation = "add," + to_string(((rpq_add_cmd*)op) -> element) + "," + to_string(((rpq_add_cmd*)op) -> value) + ",null";
         inv->operation = operation;
+        write_op_executed++;
         return inv;
     }
     else if (op->get_op_name() == "incrby")
@@ -71,6 +79,7 @@ struct invocation* rpq_generator::exec_op(redis_client &c, cmd* op)
         invocation* inv = new invocation;
         string operation = "incrby," + to_string(((rpq_incrby_cmd*)op) -> element) + "," + to_string(((rpq_incrby_cmd*)op) -> value) + ",null";
         inv->operation = operation;
+        write_op_executed++;
         return inv;
     }
     else if (op->get_op_name() == "rem")
@@ -81,6 +90,7 @@ struct invocation* rpq_generator::exec_op(redis_client &c, cmd* op)
         invocation* inv = new invocation;
         string operation = "rem," + to_string(((rpq_rem_cmd*)op) -> element) + ",null";
         inv->operation = operation;
+        write_op_executed++;
         return inv;
     }
     else if (op->get_op_name() == "score")
@@ -96,6 +106,7 @@ struct invocation* rpq_generator::exec_op(redis_client &c, cmd* op)
             string operation = "score," + to_string(((rpq_score_cmd*)op) -> element) + "," + "null";
             inv->operation = operation;
         }
+        write_op_executed++;
         return inv;
     }
     else if (op->get_op_name() == "max")
@@ -111,6 +122,7 @@ struct invocation* rpq_generator::exec_op(redis_client &c, cmd* op)
             string operation = "max," + ret;
             inv->operation = operation;
         }
+        write_op_executed++;
         return inv;
     }
     return NULL;
@@ -125,40 +137,68 @@ cmd* rpq_generator::generate_op()
     }
     else if (rand <= PI)
     {
-        e = intRand(MAX_ELE);
-        if (e == -1) 
+        if (elements.size() == 0) 
         {
             return generate_add();
         }
+        e = intRand(MAX_ELE);
+        unordered_set<int>::iterator it = elements.find(e);
+        if (it == elements.end()) {
+            e = intRand(MAX_ELE);
+        }
         int d = intRand(-MAX_INCR, MAX_INCR);
-        return new rpq_incrby_cmd(zt, e, d);
+        return new rpq_incrby_cmd(zt, e, d, round);
     }
     else if (rand <= PM)
     {
-        return new rpq_max_cmd(zt);
+        if (elements.size() == 0) 
+        {
+            return generate_add();
+        }
+        return new rpq_max_cmd(zt, round);
     } 
     else if (rand <= PS)
     {
-        e = intRand(MAX_ELE);
-        if (e == -1) 
+        if (elements.size() == 0) 
+        {
             return generate_add();
-        return new rpq_score_cmd(zt, e);
+        }
+        e = intRand(MAX_ELE);
+        unordered_set<int>::iterator it = elements.find(e);
+        if (it == elements.end()) {
+            e = intRand(MAX_ELE);
+        }
+        return new rpq_score_cmd(zt, e, round);
     }
     else
     {
-        e = intRand(MAX_ELE);
-        if (e == -1) {
+        if (elements.size() == 0) 
+        {
             return generate_add();
         }
-        return new rpq_rem_cmd(zt, e);
+        e = intRand(MAX_ELE);
+        unordered_set<int>::iterator it = elements.find(e);
+        if (it == elements.end()) {
+            e = intRand(MAX_ELE);
+        }
+        return new rpq_rem_cmd(zt, e, round);
     }
 }
 
 cmd* rpq_generator::generate_add()
 {
     int e;
-    int d = intRand(0, MAX_INIT);
     e = intRand(MAX_ELE);
+    unordered_set<int>::iterator it = elements.find(e);
+    if (it == elements.end()) {
+        e = intRand(MAX_ELE);
+    }
     elements.insert(e);
-    return new rpq_add_cmd(zt, e, d);
+    int d = intRand(0, MAX_INIT);
+    return new rpq_add_cmd(zt, e, d, round);
+}
+
+cmd* rpq_generator::generate_dummy()
+{
+    return new rpq_cmd(zt, "dummy", round);
 }

@@ -55,7 +55,7 @@ private:
                 for (int t = 1; RUN_CONDITION; ++t)
                 {
                     trace->insert(gen.exec_op(c, gen.get_op()));
-                    //this_thread::sleep_for(chrono::milliseconds(1));
+                    this_thread::sleep_for(chrono::nanoseconds(10));
                 }
                 traces.add(trace);
             });
@@ -109,7 +109,7 @@ public:
         auto end = chrono::steady_clock::now();
         auto time = chrono::duration_cast<chrono::duration<double>>(end - start).count();
         cout << time << " seconds, " << gen.write_op_executed / time << " op/s\n";
-        cout << gen.write_op_executed << " operations actually executed on redis." << endl;
+        cout << "round " << gen.get_round() << ", " << gen.write_op_executed << " operations actually executed on redis." << endl;
         traces.outputTrace();
     }
 };

@@ -9,15 +9,15 @@
 
 exp_setting::default_setting rpq_exp::rpq_setting{
     .name = "Rpq",
-    .total_sec = 14,
+    .total_sec = 15,
     .total_servers = 3,
     .op_per_sec = 1
 };
 
-void rpq_exp::exp_impl(const string& type, const string& pattern)
+void rpq_exp::exp_impl(const string& type, const string& pattern, int round)
 {
     exp_env env(3, 1, 1, 1);
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < round; i++) {
         rpq_generator gen(type, pattern, i);
         gen.init();
         exp_runner runner(gen, env);

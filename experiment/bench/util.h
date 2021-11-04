@@ -139,7 +139,6 @@ class cmd
 {
 protected:
     ostringstream stream;
-    string op_name;
 
     cmd() = default;
 
@@ -159,6 +158,8 @@ protected:
     friend class redis_client;
 
 public:
+    int op_name;
+
     virtual void handle_redis_return(const redisReply_ptr &r) = 0;
 
     void exec(redis_client &c)
@@ -166,28 +167,30 @@ public:
         auto r = c.exec(stream.str());
         if (r->type != REDIS_REPLY_ERROR) handle_redis_return(r);
     }
-
-    string get_op_name() {
-        return op_name;
-    }
 };
 
 class generator
 {
 protected:
     int round;
+    mutex m;
 public:
     atomic<int> write_op_executed{0};
     atomic<int> workload_pointer{0};
     vector<cmd*> workload;
     virtual struct invocation* exec_op(redis_client &c, cmd* op) = 0;
+
     cmd* get_op()
     {
-        // if (workload_pointer >= workload.size() - 3) {
-        //     write_op_executed++;
-        //     return NULL;
-        // }
+        if (workload_pointer >= workload.size() - 2) {
+            write_op_executed++;
+            return NULL;
+        }
         return workload[workload_pointer++];
+    }
+
+    int get_round() {
+        return round;
     }
 
     generator(int r) : round(r) {;}
@@ -202,74 +205,6 @@ public:
                 delete c;
             } 
         }
-    }
-};
-
-class rdt_log
-{
-private:
-    string dir;
-
-    static inline void bench_mkdir(const string &path)
-    {
-#if defined(_WIN32)
-        _mkdir(path.c_str());
-#else
-        mkdir(path.c_str(), S_IRWXU | S_IRGRP | S_IROTH);
-#endif
-    }
-
-    template <size_t I = 0, typename... Tp>
-    static inline typename enable_if<I == sizeof...(Tp) - 1, void>::type write_tuple(
-        ofstream &ofs, tuple<Tp...> &t)
-    {
-        ofs << get<I>(t) << "\n";
-    }
-
-    template <size_t I = 0, typename... Tp>
-    static inline typename enable_if<I < sizeof...(Tp) - 1, void>::type write_tuple(
-        ofstream &ofs, tuple<Tp...> &t)
-    {
-        ofs << get<I>(t) << ",";
-        write_tuple<I + 1, Tp...>(ofs, t);
-    }
-
-protected:
-    rdt_log(const char *CRDT_name, const string &type)
-    {
-        ostringstream stream;
-        stream << "../result/" << CRDT_name << (exp_setting::compare ? ",cmp" : "");
-        bench_mkdir(stream.str());
-
-        if (exp_setting::type == exp_setting::exp_type::pattern)
-            stream << "/" << exp_setting::pattern_name;
-        else
-            stream << "/" << exp_setting::type_str[static_cast<int>(exp_setting::type)];
-        bench_mkdir(stream.str());
-
-        stream << "/" << exp_setting::round_num;
-        bench_mkdir(stream.str());
-
-        stream << "/" << type << "_" << TOTAL_SERVERS << "," << exp_setting::op_per_sec;
-        dir = stream.str();
-        bench_mkdir(dir);
-    }
-
-public:
-    atomic<int> write_op_generated{0};
-    atomic<int> write_op_executed{0};
-
-    virtual void write_logfiles() = 0;
-    virtual void log_compare(redisReply_ptr &r1, redisReply_ptr &r2) = 0;
-
-    template <typename... Tp>
-    void write_one_logfile(const char *filename, list<tuple<Tp...>> &log)
-    {
-        ostringstream stream;
-        stream << dir << "/" << filename;
-        ofstream fout(stream.str(), ios::out | ios::trunc);
-        for (auto &o : log)
-            write_tuple(fout, o);
     }
 };
 
@@ -307,29 +242,29 @@ protected:
         : rdt_exp_setting(rdt_st), rdt_type(rdt_type)
     {}
 
-    virtual void exp_impl(const string &type, const string &pattern) = 0;
+    virtual void exp_impl(const string &type, const string &pattern, int round) = 0;
 
-    inline void exp_impl(const string &type) { exp_impl(type, "default"); }
+    inline void exp_impl(const string &type) { exp_impl(type, "default", 100); }
 
 public:
-    void test_patterns()
+    void test_patterns(int round)
     {
         for (auto &p : rdt_patterns)
             for (auto &t : rdt_types)
-                pattern_fix(p, t);
+                pattern_fix(p, t, round);
     }
 
-    void test_default_settings()
+    void test_default_settings(int round)
     {
         for (auto &t : rdt_types)
-            pattern_fix("default", t);
+            pattern_fix("default", t, round);
     }
 
-    void pattern_fix(const string &pattern, const string &type)
+    void pattern_fix(const string &pattern, const string &type, int round)
     {
         exp_setter s(*this, type);
         exp_setting::set_pattern(pattern);
-        exp_impl(type, pattern);
+        exp_impl(type, pattern, round);
     }
 };
 
@@ -350,7 +285,9 @@ public:
 
     void insert(invocation* inv) {
         if (inv != NULL)
-            log.push_back(inv);
+            log.emplace_back(inv);
+        // else 
+        //     printf("%s\n", "fail");
     }
 
     int size() {

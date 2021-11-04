@@ -9,9 +9,18 @@ int main(int argc, char *argv[])
 {
     istream::sync_with_stdio(false);
     ostream::sync_with_stdio(false);
-
-    if (argc == 2)
-        exp_env::sudo_pwd = argv[1];
+    int round = 10;
+    if (argc == 3)
+    {
+        if (strcmp(argv[1], "stop") == 0) {
+            exp_env::sudo_pwd = argv[2];
+            exp_env e(3, 1, 1, 1);
+            return 0;
+        } else {
+            exp_env::sudo_pwd = argv[2];
+            round = atoi(argv[1]);
+        }
+    }
     else if (argc == 1)
     {
         cout << "please enter the password for sudo: ";
@@ -28,7 +37,7 @@ int main(int argc, char *argv[])
     // list_exp le;
 
     exp_setting::compare = false;
-    re.test_default_settings();
+    re.test_default_settings(round);
     // le.test_default_settings();
 
     return 0;

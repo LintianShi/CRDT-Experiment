@@ -1,6 +1,6 @@
 CC = g++
-# CPPFLAGS =  -g -fsanitize=address -std=c++14 -Wno-unused-result -O3
-CPPFLAGS = -std=c++14 -Wno-unused-result -O3
+CPPFLAGS =  -g -fsanitize=address -std=c++14 -Wno-unused-result -O3
+# CPPFLAGS = -g -std=c++14 -Wno-unused-result -O3
 
 # CPPFILES = $(shell find . -maxdepth 2 -name "*.cpp")
 CPPFILES = $(shell find . ! -path "*list*" | grep .cpp)
@@ -18,8 +18,9 @@ include $(INCLUDES)
 	rm -f $@.$$$$
 
 bench: $(OBJS)
-	$(CC) -o bench_start $^ -pthread -lhiredis -lssh
-# $(CC) -o bench_start -g $^ -pthread -lhiredis -lssh -fsanitize=address
+	$(CC) -o bench_start -g $^ -pthread -lhiredis -lssh -fsanitize=address
+# $(CC) -o bench_start $^ -pthread -lhiredis -lssh
+
 
 
 	

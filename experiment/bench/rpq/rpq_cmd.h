@@ -5,15 +5,35 @@
 #ifndef BENCH_RPQ_CMD_H
 #define BENCH_RPQ_CMD_H
 
+#define ADD 1
+#define INCRBY 2
+#define REM 3
+#define MAX 4
+#define SCORE 5
+#define DUMMY 6
+
 #include "../util.h"
+#include <string.h>
 
 class rpq_cmd : public cmd
 {
 public:
-    rpq_cmd(const string &type, const char *op, int round)
+    rpq_cmd(const string &type, int op, int round)
     {
-        stream << type << "z" << op << " " << type << "rpq" << round;
-        op_name = op;
+        string method;
+        if (op == ADD) {
+            method = "add";
+        } else if (op == INCRBY) {
+            method = "incrby";
+        } else if (op == REM) {
+            method = "rem";
+        } else if (op == MAX) {
+            method = "max";
+        } else if (op == SCORE) {
+            method = "score";
+        }
+        stream << type << "z" << method << " " << type << "rpq" << round;
+        this->op_name = op;
     }
 
     void handle_redis_return(const redisReply_ptr &r) override { ; }
@@ -25,7 +45,7 @@ public:
     int element;
     int value;
     rpq_add_cmd(const string &type, int element, int value, int round)
-        : rpq_cmd(type, "add", round), element(element), value(value)
+        : rpq_cmd(type, ADD, round), element(element), value(value)
     {
         add_args(element, value);
     }
@@ -38,7 +58,7 @@ public:
     int value;
 
     rpq_incrby_cmd(const string &type, int element, int value, int round)
-        : rpq_cmd(type, "incrby", round), element(element), value(value)
+        : rpq_cmd(type, INCRBY, round), element(element), value(value)
     {
         add_args(element, value);
     }
@@ -50,7 +70,7 @@ public:
     int element;
 
     rpq_rem_cmd(const string &type, int element, int round)
-        : rpq_cmd(type, "rem", round), element(element)
+        : rpq_cmd(type, REM, round), element(element)
     {
         add_args(element);
     }
@@ -59,7 +79,7 @@ public:
 class rpq_max_cmd : public rpq_cmd
 {
 public:
-    rpq_max_cmd(const string &type, int round) : rpq_cmd(type,"max", round) {}
+    rpq_max_cmd(const string &type, int round) : rpq_cmd(type, MAX, round) {}
 };
 
 class rpq_score_cmd : public rpq_cmd
@@ -67,7 +87,7 @@ class rpq_score_cmd : public rpq_cmd
 public:
     int element;
     rpq_score_cmd(const string &type, int element, int round)
-         : rpq_cmd(type, "score", round), element(element) 
+         : rpq_cmd(type, SCORE, round), element(element) 
          {
             add_args(element);
          }

@@ -13,7 +13,7 @@ class rpq_exp : public rdt_exp
 private:
     static exp_setting::default_setting rpq_setting;
 
-    void exp_impl(const string& type, const string& pattern) override;
+    void exp_impl(const string& type, const string& pattern, int round) override;
 
 public:
     rpq_exp() : rdt_exp(rpq_setting, "rpq")

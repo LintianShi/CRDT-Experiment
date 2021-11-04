@@ -4,6 +4,7 @@
 
 #include "rpq_generator.h"
 #include <math.h>
+#include <string.h>
 
 #define PA (pattern.PR_ADD)
 #define PI (pattern.PR_ADD + pattern.PR_INC)
@@ -45,24 +46,34 @@ rpq_generator::rpq_op_gen_pattern& rpq_generator::get_pattern(const string& name
 
 void rpq_generator::init()
 {
-    for (int i = 0; i < 30; i++) {
+    for (int i = 0; i < 200; i++) {
         workload.emplace_back(generate_dummy());
     }
-    for (int i = 0; i < exp_setting::total_ops * 3; i++) {
+    int i = 0;
+    while (i < exp_setting::total_ops * 5) {
         cmd* c = generate_op();
-        if (c != NULL)
+        if (c != NULL) {
             workload.emplace_back(c);
+            i++;
+        }
+            
     }
 }
 
 struct invocation* rpq_generator::exec_op(redis_client &c, cmd* op) 
 {
-    if (op == NULL || op->get_op_name() == "dummy") {
+    
+    if (op == NULL) {
         return NULL;
     }
+    if (op->op_name == DUMMY) {
+        return NULL;
+    }
+    
     redisReply_ptr reply = c.exec(op);
-    if (op->get_op_name() == "add") {
+    if (op->op_name == ADD) {
         if (reply == NULL || reply->type == 6) {
+            // printf("op: %d\n", op->op_name);
             return NULL;
         }
         invocation* inv = new invocation;
@@ -71,9 +82,10 @@ struct invocation* rpq_generator::exec_op(redis_client &c, cmd* op)
         write_op_executed++;
         return inv;
     }
-    else if (op->get_op_name() == "incrby")
+    else if (op->op_name == INCRBY)
     {
         if (reply == NULL || reply->type == 6) {
+            // printf("op: %d\n", op->op_name);
             return NULL;
         }
         invocation* inv = new invocation;
@@ -82,9 +94,10 @@ struct invocation* rpq_generator::exec_op(redis_client &c, cmd* op)
         write_op_executed++;
         return inv;
     }
-    else if (op->get_op_name() == "rem")
+    else if (op->op_name == REM)
     {
         if (reply == NULL || reply->type == 6) {
+            // printf("op: %d\n", op->op_name);
             return NULL;
         }
         invocation* inv = new invocation;
@@ -93,8 +106,12 @@ struct invocation* rpq_generator::exec_op(redis_client &c, cmd* op)
         write_op_executed++;
         return inv;
     }
-    else if (op->get_op_name() == "score")
+    else if (op->op_name == SCORE)
     {
+        if (reply == NULL || reply->type == 6) {
+            // printf("op: %d\n", op->op_name);
+            return NULL;
+        }
         invocation* inv = new invocation;
         if (reply->type == 1)
         {
@@ -109,8 +126,12 @@ struct invocation* rpq_generator::exec_op(redis_client &c, cmd* op)
         write_op_executed++;
         return inv;
     }
-    else if (op->get_op_name() == "max")
+    else if (op->op_name == MAX)
     {
+        if (reply == NULL || reply->type == 6) {
+            // printf("op: %d\n", op->op_name);
+            return NULL;
+        }
         invocation* inv = new invocation;
         if (reply->elements == 2) {
             string ret1 = reply->element[0]->str;
@@ -200,5 +221,5 @@ cmd* rpq_generator::generate_add()
 
 cmd* rpq_generator::generate_dummy()
 {
-    return new rpq_cmd(zt, "dummy", round);
+    return new rpq_cmd(zt, DUMMY, round);
 }

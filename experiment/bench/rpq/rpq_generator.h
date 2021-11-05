@@ -36,16 +36,15 @@ private:
     unordered_set<int> elements;
 
     static rpq_op_gen_pattern &get_pattern(const string &name);
-    cmd* generate_op();
+    cmd* generate_op() override;
     cmd* generate_add();
-    cmd* generate_dummy();
+    cmd* generate_dummy() override;
 
 
 public:
     rpq_generator(const string &type, const string &p, int r)
         : zt(type), pattern(get_pattern(p)), generator(r) {}
 
-    void init();
     struct invocation* exec_op(redis_client &c, cmd* op) override;
 };
 

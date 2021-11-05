@@ -44,25 +44,8 @@ rpq_generator::rpq_op_gen_pattern& rpq_generator::get_pattern(const string& name
     return patterns[name];
 }
 
-void rpq_generator::init()
-{
-    for (int i = 0; i < 200; i++) {
-        workload.emplace_back(generate_dummy());
-    }
-    int i = 0;
-    while (i < exp_setting::total_ops * 5) {
-        cmd* c = generate_op();
-        if (c != NULL) {
-            workload.emplace_back(c);
-            i++;
-        }
-            
-    }
-}
-
 struct invocation* rpq_generator::exec_op(redis_client &c, cmd* op) 
 {
-    
     if (op == NULL) {
         return NULL;
     }
@@ -211,7 +194,7 @@ cmd* rpq_generator::generate_add()
     int e;
     e = intRand(MAX_ELE);
     unordered_set<int>::iterator it = elements.find(e);
-    if (it == elements.end()) {
+    if (it != elements.end()) {
         e = intRand(MAX_ELE);
     }
     elements.insert(e);

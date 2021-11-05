@@ -31,6 +31,8 @@ public:
             method = "max";
         } else if (op == SCORE) {
             method = "score";
+        } else {
+            method = "dummy";
         }
         stream << type << "z" << method << " " << type << "rpq" << round;
         this->op_name = op;

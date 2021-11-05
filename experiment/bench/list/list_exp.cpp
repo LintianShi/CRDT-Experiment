@@ -5,18 +5,19 @@
 
 exp_setting::default_setting list_exp::list_setting{
     .name = "List",
-    .total_sec = 3,
+    .total_sec = 14,
     .total_servers = 3,
-    .op_per_sec = 1000,
+    .op_per_sec = 1,
     };
 
-void list_exp::exp_impl(const string& type, const string& pattern)
+void list_exp::exp_impl(const string& type, const string& pattern, int round)
 {
-    list_log list(type);
-    list_generator gen(type, list, pattern);
-    list_ovhd_cmd ovhd(type, list);
-    list_read_cmd read(type, list);
     exp_env env(3, 1, 1, 1);
-    exp_runner runner(gen, env);
-    runner.run();
+    for (int i = 0; i < round; i++) {
+        list_generator gen(type, pattern, i);
+        gen.init();
+        exp_runner runner(gen, env);
+        runner.run();
+        this_thread::sleep_for(chrono::milliseconds(100));
+    }    
 }

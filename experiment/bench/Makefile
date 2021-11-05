@@ -2,8 +2,8 @@ CC = g++
 CPPFLAGS =  -g -fsanitize=address -std=c++14 -Wno-unused-result -O3
 # CPPFLAGS = -g -std=c++14 -Wno-unused-result -O3
 
-# CPPFILES = $(shell find . -maxdepth 2 -name "*.cpp")
-CPPFILES = $(shell find . ! -path "*list*" | grep .cpp)
+CPPFILES = $(shell find . -maxdepth 2 -name "*.cpp")
+# CPPFILES = $(shell find . ! -path "*list*" | grep .cpp)
 OBJS = $(CPPFILES:.cpp=.o)
 INCLUDES = $(CPPFILES:.cpp=.d)
 

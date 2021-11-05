@@ -1,126 +1,70 @@
 #ifndef BENCH_LIST_CMD_H
 #define BENCH_LIST_CMD_H
 
+#define INSERT 1
+#define UPDATE 2
+#define REMOVE 3
+#define READ 4
+#define DUMMY 5
+
 #include "../util.h"
-#include "list_log.h"
 #include "list_generator.h"
 
 class list_cmd : public cmd
 {
-protected:
-    list_log &list;
-
-    list_cmd(const string &type, list_log &list, const char *op) : list(list)
+public:
+    list_cmd(const string &type, int op, int round)
     {
-        stream << type << "l" << op << " " << type << "list";
+        string method;
+        if (op == INSERT) {
+            method = "insert";
+        } else if (op == UPDATE) {
+            method = "update";
+        } else if (op == REMOVE) {
+            method = "rem";
+        } else if (op == READ) {
+            method = "list";
+        } else {
+            method = "dummy";
+        }
+        stream << type << "l" << method << " " << type << "list" <<round;
+        this->op_name = op;
     }
+
+    void handle_redis_return(const redisReply_ptr &r) override {}
 };
 
 class list_insert_cmd : public list_cmd
 {
-    friend class list_generator;
-private:
-    string prev, id, content;
-    int font, size, color;
-    bool bold, italic, underline;
-
 public:
-    list_insert_cmd(const string &type, list_log &list, string &prev, string &id, string &content,
-                    int font, int size, int color, bool bold, bool italic, bool underline)
-        : list_cmd(type, list, "insert"),
+    string prev, id, content;
+
+    list_insert_cmd(const string &type, string &prev, string &id, string &content, int round)
+        : list_cmd(type, INSERT, round),
           prev(prev),
           id(id),
-          content(content),
-          font(font),
-          size(size),
-          color(color),
-          bold(bold),
-          italic(italic),
-          underline(underline)
+          content(content)
     {
-        int property = 0;
-        if (bold) property |= BOLD;            // NOLINT
-        if (italic) property |= ITALIC;        // NOLINT
-        if (underline) property |= UNDERLINE;  // NOLINT
-        add_args(prev, id, content, font, size, color, property);
-        list.write_op_generated++;
+        add_args(prev, id, content, 1, 12, 0U, 0);
     }
-
-    void handle_redis_return(const redisReply_ptr &r) override
-    {
-        ;
-    }
-};
-
-class list_update_cmd : public list_cmd
-{
-private:
-    string id, upd_type;
-    int value;
-
-public:
-    list_update_cmd(const string &type, list_log &list, string &id, string &upd_type, int value)
-        : list_cmd(type, list, "update"), id(id), upd_type(upd_type), value(value)
-    {
-        add_args(id, upd_type, value);
-        list.write_op_generated++;
-    }
-
-    void handle_redis_return(const redisReply_ptr &r) override { list.update(id, upd_type, value); }
 };
 
 class list_remove_cmd : public list_cmd
 {
-private:
+public:
     string id;
 
-public:
-    list_remove_cmd(const string &type, list_log &list, string &id)
-        : list_cmd(type, list, "rem"), id(id)
+    list_remove_cmd(const string &type, string &id, int round)
+        : list_cmd(type, REMOVE, round), id(id)
     {
         add_args(id);
-        list.write_op_generated++;
     }
-
-    void handle_redis_return(const redisReply_ptr &r) override { ; }
-};
-
-class list_get_cmd : public list_cmd
-{
-private:
-    string prev;
-
-public:
-    list_get_cmd(const string &type, list_log &list, string &prev)
-        : list_cmd(type, list, "get"), prev(prev)
-    {
-        add_args(prev);
-        list.write_op_generated++;
-    }
-
-    void handle_redis_return(const redisReply_ptr &r) override { ; }
 };
 
 class list_read_cmd : public list_cmd
 {
 public:
-    list_read_cmd(const string &type, list_log &list) : list_cmd(type, list, "list") {}
-
-    void handle_redis_return(const redisReply_ptr &r) override
-    {
-        if (!exp_setting::compare) list.read_list(r);
-    }
-};
-
-class list_ovhd_cmd : public list_cmd
-{
-public:
-    list_ovhd_cmd(const string &type, list_log &list) : list_cmd(type, list, "overhead") {}
-
-    void handle_redis_return(const redisReply_ptr &r) override
-    {
-        list.overhead(static_cast<int>(r->integer));
-    }
+    list_read_cmd(const string &type, int round) : list_cmd(type, READ, round) {}
 };
 
 #endif  // BENCH_LIST_CMD_H

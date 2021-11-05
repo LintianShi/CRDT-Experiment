@@ -43,7 +43,7 @@ static inline int intRand(int max) { return intRand(0, max - 1); }
 
 static inline bool boolRand() { return intRand(0, 1); }
 
-string strRand(int max_len = 16);
+string strRand(int max_len = 3);
 
 double doubleRand(double min, double max);
 
@@ -179,6 +179,23 @@ public:
     atomic<int> workload_pointer{0};
     vector<cmd*> workload;
     virtual struct invocation* exec_op(redis_client &c, cmd* op) = 0;
+    virtual cmd* generate_op() = 0;
+    virtual cmd* generate_dummy() = 0;
+
+    void init()
+    {
+        for (int i = 0; i < 200; i++) {
+            workload.emplace_back(generate_dummy());
+        }
+        int i = 0;
+        while (i < exp_setting::total_ops * 5) {
+            cmd* c = generate_op();
+            if (c != NULL) {
+                workload.emplace_back(c);
+                i++;
+            }     
+        }
+    }
 
     cmd* get_op()
     {

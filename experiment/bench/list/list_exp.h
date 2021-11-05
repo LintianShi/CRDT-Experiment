@@ -9,14 +9,14 @@ class list_exp : public rdt_exp
 private:
     static exp_setting::default_setting list_setting;
 
-    void exp_impl(const string& type, const string& pattern) override;
+    void exp_impl(const string& type, const string& pattern, int round) override;
 
 public:
     list_exp() : rdt_exp(list_setting, "list")
     {
         // ! List types: "r", "rwf"
         add_type("rwf");
-        add_pattern("upddominant");
+        add_pattern("default");
     }
 };
 

@@ -5,162 +5,124 @@ constexpr auto TOTAL_FONT_TYPE = 10;
 constexpr auto MAX_COLOR = 1u << 25u;
 
 #define PA (pattern.PR_ADD)
-#define PU (pattern.PR_ADD + pattern.PR_UPD)
+#define PR (pattern.PR_ADD + pattern.PR_REM)
 
 list_generator::list_op_gen_pattern &list_generator::get_pattern(const string &name)
 {
     static map<string, list_op_gen_pattern> patterns{
-        {"default", {.PR_ADD = 0.60, .PR_UPD = 0.20, .PR_REM = 0.20}},
-        {"upddominant", {.PR_ADD = 0.60, .PR_UPD = 0.20, .PR_REM = 0.20}}};
+        {"default", {.PR_ADD = 0.60, .PR_REM = 0.20, .PR_READ = 0.20}},
+        {"upddominant", {.PR_ADD = 0.60, .PR_REM = 0.20, .PR_READ = 0.20}}};
     if (patterns.find(name) == patterns.end()) return patterns["default"];
     return patterns[name];
 }
 
-int list_generator::id_gen::index(thread::id tid)
+struct invocation* list_generator::exec_op(redis_client &c, cmd* op) 
 {
-    static int next_index = 0;
-    static mutex my_mutex;
-    static map<thread::id, int> ids;
-    lock_guard<mutex> lock(my_mutex);
-    if (ids.find(tid) == ids.end()) ids[tid] = next_index++;
-    return ids[tid];
-}
-
-struct invocation* list_generator::exec_insert(redis_client& c) {
-    //list.write_op_executed++;
-    list_insert_cmd* op_insert = gen_insert();
-    auto start = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    redisReply_ptr reply = c.exec(op_insert);
-    auto end = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    if (op == NULL) {
+        return NULL;
+    }
+    if (op->op_name == DUMMY) {
+        return NULL;
+    }
     
-    if (reply == NULL || reply->type == 6) {
-        return NULL;
+    redisReply_ptr reply = c.exec(op);
+    if (op->op_name == INSERT) {
+        if (reply == NULL || reply->type == 6) {
+            return NULL;
+        }
+        invocation* inv = new invocation;
+        inv->operation = "insert," + ((list_insert_cmd*)op)->prev + "," + ((list_insert_cmd*)op)->id + "," + ((list_insert_cmd*)op)->content + ",null";
+        write_op_executed++;
+        return inv;
     }
-    list.insert(op_insert->prev, op_insert->id, op_insert->content, op_insert->font, op_insert->size, op_insert->color, op_insert->bold, op_insert->italic, op_insert->underline);
-    invocation* inv = new invocation;
-    inv->start_time = start;
-    inv->end_time = end;
-    inv->operation = "insert," + op_insert->prev + "," + op_insert->id + "," + op_insert->content + ",null";
-    return inv;
-}
-
-struct invocation* list_generator::exec_remove(redis_client& c, string &id) {
-    //list.write_op_executed++;
-    auto start = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    redisReply_ptr reply = c.exec(new list_remove_cmd(type, list, id));
-    auto end = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    
-    if (reply == NULL || reply->type == 6) {
-        return NULL;
+    else if (op->op_name == REMOVE)
+    {
+        if (reply == NULL || reply->type == 6) {
+            return NULL;
+        }
+        invocation* inv = new invocation;
+        inv->operation = "remove," + ((list_remove_cmd*)op)->id + ",null";
+        write_op_executed++;
+        return inv;
     }
-    list.remove(id);
-    invocation* inv = new invocation;
-    inv->start_time = start;
-    inv->end_time = end;
-    inv->operation = "remove," + id + ",null";
-    return inv;
-}
-
-struct invocation* list_generator::exec_getNext(redis_client& c, string& prev) {
-    auto start = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    redisReply_ptr reply = c.exec(new list_read_cmd(type, list));
-    auto end = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    if (reply == NULL || reply->type == 6) {
-        return NULL;
-    }
-
-    int r_len = reply->elements;
-    string name = "null";
-    if (r_len != 0) {
-        for (int i = 0; i < r_len; i++) {
-            string temp_name = reply->element[i]->element[0]->str;
-            if (temp_name.compare(prev) == 0 && i < r_len - 1) {
-                name = reply->element[i+1]->element[0]->str;
-                name += ":";
-                name += + reply->element[i+1]->element[1]->str;
-                break;
-            } else if (temp_name.compare(prev) == 0 && i == r_len - 1) {
-                name = "end";
-            }
+    else if (op->op_name == READ)
+    {
+        if (reply == NULL || reply->type == 6) {
+            return NULL;
         }
         
+        string result = "";
+        int r_len = reply->elements;
+        if (r_len != 0) {
+            for (int i = 0; i < r_len; i++) {
+                result += reply->element[i]->element[1]->str;
+            }
+        } else {
+            result = "null";
+        }
+        invocation* inv = new invocation;
+        inv->operation = "read," + result;
+        write_op_executed++;
+        return inv;
     }
-
-    if (name.compare("null") == 0) {
-        return NULL;
-    }
-    list.write_op_executed++;
-    invocation* inv = new invocation;
-    inv->start_time = start;
-    inv->end_time = end;
-    inv->operation = "get," + prev + "," + name;
-    return inv;
-}
-
-struct invocation* list_generator::exec_getIndex(redis_client& c, int index) {
-    auto start = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    redisReply_ptr reply = c.exec(new list_read_cmd(type, list));
-    auto end = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    if (reply == NULL || reply->type == 6) {
-        return NULL;
-    }
-
-    int r_len = reply->elements;
-    string name = "null";
-    if (index < r_len) {
-            name = reply->element[index]->element[0]->str;
-            name += ":";
-            name += + reply->element[index]->element[1]->str;
-    }
-
-    if (name.compare("null") == 0) {
-        return NULL;
-    }
-    list.write_op_executed++;
-    invocation* inv = new invocation;
-    inv->start_time = start;
-    inv->end_time = end;
-    inv->operation = "get," + to_string(index) + "," + name;
-    return inv;
-}
-
-struct invocation* list_generator::exec_dummy(redis_client& c) {
-    list.write_op_executed++;
     return NULL;
 }
 
-struct invocation* list_generator::gen_and_exec(redis_client &c)
+cmd* list_generator::generate_op()
 {
-    if (list.write_op_executed < 0) {
-        return exec_dummy(c);
+
+    double rand = decide();
+    if (rand <= PA) { 
+        return generate_insert(); 
     }
-    int rand = intRand(0, 100);
-    // TODO conflicts?
-    if (rand <= 50) { 
-        return exec_insert(c); 
-    }
-    else if (rand <= 75) {
-        // string prev = list.random_get();
-        // if (prev.empty()) return exec_insert(c);
-        // return exec_getNext(c, prev);
-        int index = list.random_get_index();
-        if (index == -1) return exec_insert(c);
-        return exec_getIndex(c, index);
+    else if (rand <= PR) {
+        int id = random_get();
+        if (id == -1) {
+            return generate_insert();
+        }
+        string id_str = to_string(id);
+        return new list_remove_cmd(type, id_str, round);
     }
     else
     {
-        string id = list.random_get();
-        if (id.empty()) return exec_insert(c);
-        return exec_remove(c, id);
+        return new list_read_cmd(type, round);
     }
 }
 
-list_insert_cmd *list_generator::gen_insert()
+cmd* list_generator::generate_insert()
 {
-    string prev = list.random_get(), id = new_id.get(), content = strRand();
-    int font = intRand(TOTAL_FONT_TYPE), size = intRand(MAX_FONT_SIZE), color = intRand(MAX_COLOR);
-    bool bold = boolRand(), italic = boolRand(), underline = boolRand();
-    if (prev.empty()) prev = "null";
-    return new list_insert_cmd(type, list, prev, id, content, font, size, color, bold, italic,
-                               underline);
+    int id;
+    id = intRand(MAX_ELE);
+    unordered_set<int>::iterator it = elements.find(id);
+    int i = 0;
+    while (it != elements.end() && i < 5) {
+        id = intRand(MAX_ELE);
+        unordered_set<int>::iterator it = elements.find(id);
+        i++;
+    }
+    
+    int prev = random_get();
+    elements.insert(id);
+    string content = strRand();
+    string id_str = to_string(id);
+    if (prev == -1) {
+        string prev_str = "null";
+        return new list_insert_cmd(type, prev_str, id_str, content, round);
+    } else {
+        string prev_str = to_string(prev);
+        return new list_insert_cmd(type, prev_str, id_str, content, round);
+    }
+}
+
+cmd* list_generator::generate_dummy()
+{
+    return new list_cmd(type, DUMMY, round);
+}
+
+int list_generator::random_get() {
+    if (elements.empty()) return -1;
+    int pos = intRand(elements.size() + 1);  // NOLINT
+    if (pos == elements.size()) return -1;
+    auto random_it = next(begin(elements), pos);
+    return *random_it;
 }

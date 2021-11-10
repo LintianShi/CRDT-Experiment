@@ -57,21 +57,21 @@ void rwfzaddCommand(client *c)
             CHECK_ARGC(4);
             CHECK_CONTAINER_TYPE(OBJ_ZSET);
             CHECK_ARG_TYPE_DOUBLE(c->argv[3]);
-            rwfze *e = GET_RWFZE(argv, 1);
-            PREPARE_PRECOND_ADD(e);
-            ADD_CR_NON_RMV(e);
+            rwfze *e = GET_RWFZE(argv, 1);  //add an element in set, if not exist then create one
+            PREPARE_PRECOND_ADD(e); //element cannot exist already
+            ADD_CR_NON_RMV(e);  //add a vc for add command
         CRDT_EFFECT
             double v;
-            getDoubleFromObject(c->rargv[3], &v);
-            vc *t = CR_GET_LAST;
-            rwfze *e = GET_RWFZE(rargv, 1);
-            removeFunc(c, e, t);
-            if (addCheck((reh *)e, t))
+            getDoubleFromObject(c->rargv[3], &v);   //from command read arg value
+            vc *t = CR_GET_LAST;    //get command's vc
+            rwfze *e = GET_RWFZE(rargv, 1); //get element according to the key
+            removeFunc(c, e, t);    //if this element is old, remove
+            if (addCheck((reh *)e, t))  //element should be the one insert in PREPARE
             {
-                e->innate = v;
-                robj *zset = getZsetOrCreate(c->db, c->rargv[1], c->rargv[2]);
+                e->innate = v;  //value
+                robj *zset = getZsetOrCreate(c->db, c->rargv[1], c->rargv[2]);  //get set
                 int flags = ZADD_NONE;
-                zsetAdd(zset, SCORE(e), c->rargv[2]->ptr, &flags, NULL);
+                zsetAdd(zset, SCORE(e), c->rargv[2]->ptr, &flags, NULL);    //add element to set
                 server.dirty++;
             }
             vc_delete(t);

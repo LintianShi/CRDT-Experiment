@@ -8,9 +8,9 @@
 
 typedef struct vector_clock
 {
-    int *vector;
-    int size;
-    int id;
+    int *vector;    //store int
+    int size;       //size (1,1,2,1,1) => 5
+    int id;         //the index for current server [0,size)
 } vc;
 
 #define VC_LESS (-2)
@@ -26,14 +26,13 @@ typedef struct vector_clock
 #define vc_new() _vc_new(server.p2p_count, CURRENT_PID)
 #define vc_inc(c) _vc_inc((c), CURRENT_PID)
 
-vc *_vc_new(int size, int id);
-// duplicate
-vc *vc_dup(const vc *c);
+vc *_vc_new(int size, int id);  //create a new vector clock
+vc *vc_dup(const vc *c);    // duplicate a vector clock
 int vc_cmp(const vc *c1, const vc *c2);
 vc *vc_update(vc *tar, const vc *m);
 sds vcToSds(const vc *c);
 vc *sdsToVC(sds s);
-int vc_equal(const vc *c1, const vc *c2);
+int vc_equal(const vc *c1, const vc *c2);   //1 for equal, 0 for not equal
 int vc_causally_ready(const vc *current, const vc *next);
 static inline void vc_delete(vc *c)
 {

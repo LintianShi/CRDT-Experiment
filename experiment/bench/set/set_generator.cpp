@@ -48,7 +48,7 @@ struct invocation* set_generator::exec_op(redis_client &c, cmd* op)
             return NULL;
         }
         invocation* inv = new invocation;
-        string operation = "rem," + to_string(((set_rem_cmd*)op) -> element) + ",null";
+        string operation = "remove," + to_string(((set_rem_cmd*)op) -> element) + ",null";
         inv->operation = operation;
         write_op_executed++;
         return inv;

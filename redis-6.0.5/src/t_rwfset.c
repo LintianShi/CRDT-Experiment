@@ -104,6 +104,16 @@ void rwfscontainsCommand(client *c)
     }
 }
 
+void rwfssizeCommand(client *c)
+{
+    robj *zobj;
+    if ((zobj = lookupKeyReadOrReply(c, c->argv[1], shared.emptyarray)) == NULL
+        || checkType(c, zobj, OBJ_ZSET))
+        return;
+    unsigned long size = zsetLength(zobj);
+    addReplyLongLong(c, size);
+}
+
 #ifdef CRDT_ELE_STATUS
 void rwfsestatusCommand(client *c)
 {

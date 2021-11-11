@@ -2441,6 +2441,7 @@ void rwfzmaxCommand(client *c);
 void rwfsaddCommand(client *c);
 void rwfsremCommand(client *c);
 void rwfscontainsCommand(client *c);
+void rwfssizeCommand(client *c);
 
 void rlinsertCommand(client* c);
 void rlupdateCommand(client* c);

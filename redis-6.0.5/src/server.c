@@ -1093,7 +1093,7 @@ struct redisCommand redisCommandTable[] = {
      "read-only fast",
      0, NULL, 1, 1, 1, 0, 0, 0},
 
-    {"rwfscontains", rwfscontainsCommand, 2,
+    {"rwfssize", rwfssizeCommand, 2,
      "read-only fast",
      0, NULL, 1, 1, 1, 0, 0, 0},
 

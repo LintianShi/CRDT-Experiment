@@ -13,10 +13,10 @@
 set_generator::set_op_gen_pattern& set_generator::get_pattern(const string& name)
 {
     static map<string, set_op_gen_pattern> patterns{{"default",
-                                                     {.PR_ADD = 0.50,
-                                                      .PR_REM = 0.30,
-                                                      .PR_CONTAINS = 0.20}},
-
+                                                     {.PR_ADD = 0.40,
+                                                      .PR_REM = 0.20,
+                                                      .PR_CONTAINS = 0.20,
+                                                      .PR_SIZE = 0.20}},
                                                     };
     if (patterns.find(name) == patterns.end()) return patterns["default"];
     return patterns[name];
@@ -64,6 +64,16 @@ struct invocation* set_generator::exec_op(redis_client &c, cmd* op)
         inv->operation = operation;
         write_op_executed++;
         return inv;  
+    } else if ((op->op_name == SIZE)) {
+        if (reply == NULL || reply->type == 6) {
+            return NULL;
+        }
+        
+        invocation* inv = new invocation;
+        string operation = "size," + to_string(reply->integer);
+        inv->operation = operation;
+        write_op_executed++;
+        return inv;  
     }
     return NULL;
 }
@@ -88,7 +98,7 @@ cmd* set_generator::generate_op()
         }
         return new set_rem_cmd(zt, e, round);
     }
-    else
+    else if (rand <= PC)
     {
         if (elements.size() == 0) 
         {
@@ -100,6 +110,8 @@ cmd* set_generator::generate_op()
             e = intRand(MAX_ELE);
         }
         return new set_contains_cmd(zt, e, round);
+    } else {
+        return new set_size_cmd(zt, round);
     }
 }
 

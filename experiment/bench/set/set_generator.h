@@ -18,6 +18,7 @@ private:
         double PR_ADD;
         double PR_REM;
         double PR_CONTAINS;
+        double PR_SIZE;
     };
 
     static constexpr int MAX_ELE = 6;

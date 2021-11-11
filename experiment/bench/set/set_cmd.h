@@ -8,7 +8,8 @@
 #define ADD 1
 #define REM 2
 #define CONTAINS 3
-#define DUMMY 4
+#define SIZE 4
+#define DUMMY 5
 
 #include "../util.h"
 #include <string.h>
@@ -25,6 +26,8 @@ public:
             method = "rem";
         } else if (op == CONTAINS) {
             method = "contains";
+        } else if (op == SIZE) {
+            method = "size";
         } else {
             method = "dummy";
         }
@@ -67,6 +70,13 @@ public:
          {
             add_args(element);
          }
+};
+
+class set_size_cmd : public set_cmd
+{    
+public:
+    set_size_cmd(const string &type, int round)
+         : set_cmd(type, CONTAINS, round) {}
 };
 
 #endif  // BENCH_SET_CMD_H

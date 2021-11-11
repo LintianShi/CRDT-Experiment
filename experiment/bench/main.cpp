@@ -2,6 +2,7 @@
 #include "exp_setting.h"
 #include "rpq/rpq_exp.h"
 #include "list/list_exp.h"
+#include "set/set_exp.h"
 
 using namespace std;
 
@@ -37,6 +38,11 @@ int main(int argc, char *argv[])
             list_exp le;
             exp_setting::compare = false;
             le.test_default_settings(round);
+            return 0;
+        } else if (strcmp(argv[1], "set") == 0) {
+            set_exp se;
+            exp_setting::compare = false;
+            se.test_default_settings(round);
             return 0;
         }
     }

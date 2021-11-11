@@ -1081,6 +1081,18 @@ struct redisCommand redisCommandTable[] = {
      "read-only fast",
      0, NULL, 1, 1, 1, 0, 0, 0},
 
+     {"rwfsadd", rwfsaddCommand, -3,
+     "write use-memory fast",
+     0, NULL, 1, 1, 1, 0, 0, 0},
+
+    {"rwfsrem", rwfsremCommand, -3,
+     "write fast",
+     0, NULL, 1, 1, 1, 0, 0, 0},
+
+    {"rwfscontains", rwfscontainsCommand, 3,
+     "read-only fast",
+     0, NULL, 1, 1, 1, 0, 0, 0},
+
     {"rlinsert", rlinsertCommand, -9,
      "write use-memory fast",
      0, NULL, 1, 1, 1, 0, 0, 0},

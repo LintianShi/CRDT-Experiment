@@ -1,5 +1,5 @@
 //
-// Created by user on 18-10-6.
+// Created by LintianShi on 21-11-11.
 //
 
 #include "CRDT.h"
@@ -7,68 +7,60 @@
 #include "server.h"
 
 #ifdef CRDT_OVERHEAD
-#define RWFZE_SIZE (sizeof(rwfze) + REH_SIZE_ADDITIONAL)
+#define RWFSE_SIZE (sizeof(rwfse) + REH_SIZE_ADDITIONAL)
 #endif
 
-#define RWF_RPQ_TABLE_SUFFIX "_rwfzsets_"
+#define RWF_SET_TABLE_SUFFIX "_rwfsets_"
 
-typedef struct RWF_RPQ_element
+typedef struct RWF_SET_element
 {
     reh header;
-    double innate;
-    double acquired;
-} rwfze;
+    int value;
+} rwfse;
 
-rwfze *rwfzeNew()
+rwfse *rwfseNew()
 {
-#ifdef CRDT_OVERHEAD
-    ovhd_inc(RWFZE_SIZE);
-#endif
-    rwfze *e = zmalloc(sizeof(rwfze));
+    rwfse *e = zmalloc(sizeof(rwfse));
     REH_INIT(e);
-    e->innate = 0;
-    e->acquired = 0;
     return e;
 }
 
-#define SCORE(e) ((e)->innate + (e)->acquired)
+#define SCORE(e) ((e)->value)
 
-#define GET_RWFZE(arg_t, create)                                                     \
-    (rwfze *)rehHTGet(c->db, c->arg_t[1], RWF_RPQ_TABLE_SUFFIX, c->arg_t[2], create, \
-                      (rehNew_func_t)rwfzeNew)
+#define GET_RWFSE(arg_t, create)                                                     \
+    (rwfse *)rehHTGet(c->db, c->arg_t[1], RWF_SET_TABLE_SUFFIX, c->arg_t[2], create, \
+                      (rehNew_func_t)rwfseNew)
 
 // This doesn't free t.
-static void removeFunc(client *c, rwfze *e, vc *t)
+static void removeFunc(client *c, rwfse *e, vc *t)
 {
     if (removeCheck((reh *)e, t))
     {
-        e->acquired = 0;
-        e->innate = 0;
         robj *zset = getZsetOrCreate(c->db, c->rargv[1], c->rargv[2]);
         zsetDel(zset, c->rargv[2]->ptr);
         server.dirty++;
     }
 }
 
-void rwfzaddCommand(client *c)
+void rwfsaddCommand(client *c)
 {
     CRDT_BEGIN
         CRDT_PREPARE
-            CHECK_ARGC(4);
+            CHECK_ARGC(3);
             CHECK_CONTAINER_TYPE(OBJ_ZSET);
-            CHECK_ARG_TYPE_DOUBLE(c->argv[3]);
-            rwfze *e = GET_RWFZE(argv, 1);  //add an element in set, if not exist then create one
+            CHECK_ARG_TYPE_INT(c->argv[2]);
+            rwfse *e = GET_RWFSE(argv, 1);  //add an element in set, if not exist then create one
             PREPARE_PRECOND_ADD(e); //element cannot exist already
             ADD_CR_NON_RMV(e);  //add a vc for add command
         CRDT_EFFECT
-            double v;
-            getDoubleFromObject(c->rargv[3], &v);   //from command read arg value
+            long long v = 0;
+            getLongLongFromObject(c->rargv[2], &v);
             vc *t = CR_GET_LAST;    //get command's vc
-            rwfze *e = GET_RWFZE(rargv, 1); //get element according to the key
+            rwfse *e = GET_RWFSE(rargv, 1); //get element according to the key
             removeFunc(c, e, t);    //if this element is old, remove
             if (addCheck((reh *)e, t))  //element should be the one insert in PREPARE
             {
-                e->innate = v;  //value
+                e->value = v;
                 robj *zset = getZsetOrCreate(c->db, c->rargv[1], c->rargv[2]);  //get set
                 int flags = ZADD_NONE;
                 zsetAdd(zset, SCORE(e), c->rargv[2]->ptr, &flags, NULL);    //add element to set
@@ -78,52 +70,24 @@ void rwfzaddCommand(client *c)
     CRDT_END
 }
 
-void rwfzincrbyCommand(client *c)
-{
-    CRDT_BEGIN
-        CRDT_PREPARE
-            CHECK_ARGC(4);
-            CHECK_CONTAINER_TYPE(OBJ_ZSET);
-            CHECK_ARG_TYPE_DOUBLE(c->argv[3]);
-            rwfze *e = GET_RWFZE(argv, 0);
-            PREPARE_PRECOND_NON_ADD(e);
-            ADD_CR_NON_RMV(e);
-        CRDT_EFFECT
-            double v;
-            getDoubleFromObject(c->rargv[3], &v);
-            vc *t = CR_GET_LAST;
-            rwfze *e = GET_RWFZE(rargv, 1);
-            removeFunc(c, e, t);
-            if (updateCheck((reh *)e, t))
-            {
-                e->acquired += v;
-                robj *zset = getZsetOrCreate(c->db, c->rargv[1], c->rargv[2]);
-                int flags = ZADD_NONE;
-                zsetAdd(zset, SCORE(e), c->rargv[2]->ptr, &flags, NULL);
-                server.dirty++;
-            }
-            vc_delete(t);
-    CRDT_END
-}
-
-void rwfzremCommand(client *c)
+void rwfsremCommand(client *c)
 {
     CRDT_BEGIN
         CRDT_PREPARE
             CHECK_ARGC(3);
             CHECK_CONTAINER_TYPE(OBJ_ZSET);
-            rwfze *e = GET_RWFZE(argv, 0);
+            rwfse *e = GET_RWFSE(argv, 0);
             PREPARE_PRECOND_NON_ADD(e);
             ADD_CR_RMV(e);
         CRDT_EFFECT
-            rwfze *e = GET_RWFZE(rargv, 1);
+            rwfse *e = GET_RWFSE(rargv, 1);
             vc *t = CR_GET_LAST;
             removeFunc(c, e, t);
             vc_delete(t);
     CRDT_END
 }
 
-void rwfzscoreCommand(client *c)
+void rwfscontainsCommand(client *c)
 {
     robj *key = c->argv[1];
     robj *zobj;
@@ -136,87 +100,14 @@ void rwfzscoreCommand(client *c)
     if (zsetScore(zobj, c->argv[2]->ptr, &score) == C_ERR) { addReply(c, shared.null[c->resp]); }
     else
     {
-        addReplyDouble(c, score);
-    }
-}
-
-void rwfzmaxCommand(client *c)
-{
-    robj *zobj;
-    if ((zobj = lookupKeyReadOrReply(c, c->argv[1], shared.emptyarray)) == NULL
-        || checkType(c, zobj, OBJ_ZSET))
-        return;
-    if (zsetLength(zobj) == 0)
-    {
-        addReply(c, shared.emptyarray);
-
-#ifdef CRDT_LOG
-        CRDT_log("%s %s, NONE", (char *)(c->argv[0]->ptr), (char *)(c->argv[1]->ptr));
-#endif
-
-        return;
-    }
-    addReplyArrayLen(c, 2);
-    if (zobj->encoding == OBJ_ENCODING_ZIPLIST)
-    {
-        unsigned char *zl = zobj->ptr;
-        unsigned char *eptr, *sptr;
-        unsigned char *vstr;
-        unsigned int vlen;
-        long long vlong;
-
-        eptr = ziplistIndex(zl, -2);
-        sptr = ziplistNext(zl, eptr);
-
-        serverAssertWithInfo(c, zobj, eptr != NULL && sptr != NULL);
-        serverAssertWithInfo(c, zobj, ziplistGet(eptr, &vstr, &vlen, &vlong));
-        if (vstr == NULL)
-            addReplyBulkLongLong(c, vlong);
-        else
-            addReplyBulkCBuffer(c, vstr, vlen);
-        addReplyDouble(c, zzlGetScore(sptr));
-
-#ifdef CRDT_LOG
-        if (vstr == NULL)
-            CRDT_log("%s %s, %ld: %f", (char *)(c->argv[0]->ptr), (char *)(c->argv[1]->ptr),
-                     (long)vlong, zzlGetScore(sptr));
-        else
-        {
-            char *temp = zmalloc(sizeof(char) * (vlen + 1));
-            for (unsigned int i = 0; i < vlen; ++i)
-                temp[i] = vstr[i];
-            temp[vlen] = '\0';
-            CRDT_log("%s %s, %s: %f", (char *)(c->argv[0]->ptr), (char *)(c->argv[1]->ptr), temp,
-                     zzlGetScore(sptr));
-            zfree(temp);
-        }
-#endif
-    }
-    else if (zobj->encoding == OBJ_ENCODING_SKIPLIST)
-    {
-        zset *zs = zobj->ptr;
-        zskiplist *zsl = zs->zsl;
-        zskiplistNode *ln = zsl->tail;
-        serverAssertWithInfo(c, zobj, ln != NULL);
-        sds ele = ln->ele;
-        addReplyBulkCBuffer(c, ele, sdslen(ele));
-        addReplyDouble(c, ln->score);
-
-#ifdef CRDT_LOG
-        CRDT_log("%s %s, %s: %f", (char *)(c->argv[0]->ptr), (char *)(c->argv[1]->ptr), ele,
-                 ln->score);
-#endif
-    }
-    else
-    {
-        serverPanic("Unknown sorted set encoding");
+        addReplyBool(c, 1);
     }
 }
 
 #ifdef CRDT_ELE_STATUS
-void rwfzestatusCommand(client *c)
+void rwfsestatusCommand(client *c)
 {
-    rwfze *e = GET_RWFZE(argv, 0);
+    rwfse *e = GET_RWFSE(argv, 0);
     if (e == NULL)
     {
         addReply(c, shared.emptyarray);
@@ -231,15 +122,12 @@ void rwfzestatusCommand(client *c)
     addReplyBulkSds(c, sdsnew("current:"));
     addReplyBulkSds(c, vcToSds(CURRENT(e)));
 
-    addReplyBulkSds(c, sdscatprintf(sdsempty(), "innate:%f", e->innate));
-    addReplyBulkSds(c, sdscatprintf(sdsempty(), "acquired:%f", e->acquired));
-
-    
+    addReplyBulkSds(c, sdscatprintf(sdsempty(), "value:%d", e->value));
 }
 #endif
 
 #ifdef CRDT_OPCOUNT
-void rwfzopcountCommand(client *c) { addReplyLongLong(c, op_count_get()); }
+void rwfsopcountCommand(client *c) { addReplyLongLong(c, op_count_get()); }
 #endif
 
 /* Actually the hash set used here to store rwfze structures is not necessary.
@@ -262,7 +150,7 @@ void rwfzopcountCommand(client *c) { addReplyLongLong(c, op_count_get()); }
  * */
 #ifdef CRDT_OVERHEAD
 
-void rwfzoverheadCommand(client *c) { addReplyLongLong(c, ovhd_get()); }
+void rwfsoverheadCommand(client *c) { addReplyLongLong(c, ovhd_get()); }
 
 #elif 0
 

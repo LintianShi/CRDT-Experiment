@@ -104,9 +104,9 @@ typedef struct RWF_element_header
 static inline int addCheck(reh *h, vc *t)
 {
     if (!vc_equal(t, CURRENT(h))) return 0;
-    if (PID(h) < t->id)
-    {
-        PID(h) = t->id;
+    if (PID(h) < t->id)     //id is initialized as -1
+    {                       //this means add should be unique
+        PID(h) = t->id;     //cannot be handled twice
         return 1;
     }
     return 0;

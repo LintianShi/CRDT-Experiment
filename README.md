@@ -1,11 +1,3 @@
-# Experiment on CRDT-Redis
-* 以完全黑盒的方式获取CRDT-Redis执行的trace，基于bench框架中的workload生成，利用其中的冲突制造模块。
-* 支持rpq的add、rem、incrby、max、score操作
-* 修改框架以支持不对称的服务器配置\{2,2,1\}，\{2, 3, 3\}。实验不需要很多的线程，3、5、7足够了。
-* 将double类型取floor，避免C++与Java之间精度的误差。同时方便串行规约计算。
-## TODO
-* list有部分代码需要跟着修改一下
-
 # Conflict-Free Replicated Data Types Based on Redis
 
 Several Conflict-Free Replicated Data Types (CRDTs) implemented based on Redis(6.0.5).
@@ -18,13 +10,15 @@ Things we do for such implementation:
 
 The CRDTs currently implemented:
 
-* Replicated Priority Queue (RPQ)
-  * [Add-Win RPQ](document/add-win-crpq.pdf)
-  * [Remove-Win RPQ](document/rwf-tr.pdf)
-  * [RWF-RPQ](document/rwf-tr.pdf)
+* Priority Queue
+  * Add-Win PQ
+  * Remove-Win PQ
+  * RWF-PQ
+* Set
+  * RWF-Set
 * List
-  * [Remove-Win List](document/rwf-tr.pdf)
-  * [RWF-List](document/rwf-tr.pdf)
+  * Remove-Win List
+  * RWF-List
 
 For more details of our implementation, please read the linked article of the CRDTs above. Also you can read the *Performance measurements* section of [the technical report](https://arxiv.org/abs/1905.01403). Note that the **Remove-Win RPQ** in this technical report corresponds to the **RWF-RPQ** here.
 
@@ -40,57 +34,19 @@ sudo make install
 
 ## Test
 
-In the folder *experiment/redis_test* there are scripts for testing our modified Redis and RPQ implementations. By default, the test will start 5 Redis server instances on the local machine, listening on port 6379, 6380, 6381, 6382 and 6383. You may choose to start some of these server instances by using parameters when you run the scripts.
-
-Here we focus on 5 scripts:
-
-* **server.sh [parameters]** Start the 5 Redis instances, or the Redis instances specified by parameters.
-* **construct_replication.sh [parameters]** Construct P2P replication among the 5 Redis instances, or the Redis instances specified by parameters.
-* **client.sh <server_port>** Start a client to connect to the Redis server listening on the specified port.
-* **shutdown.sh [parameters]** Close the 5 Redis instances, or the Redis instances specified by parameters.
-* **clean.sh [parameters]** Remove the database files (.rdb files) and log files (.log files) of the 5 Redis instances, or the Redis instances specified by parameters.
-
-Here we show an example to test our implementation using all the 5 Redis server instances.
-
-Firstly go to the *experiment/redis_test*, **start** the Redis server instances and **construct P2P replication** among them.
-
-```bash
-cd experiment/redis_test
-./server.sh
-./construct_replication.sh
-```
-
-Now you can start redis clients to connect to Redis servers and do RPQ read/write operations. Here shows **start a client** to connect one Redis server.
-
-```bash
-./client.sh <server_port>
-```
-
-When you've finished testing, you may **close** the Redis server instances.
-
-```bash
-./shutdown.sh
-```
-
-Finally, you can **remove** the Redis database files (.rdb files) and log files (.log files).
-
-```bash
-./clean.sh
-```
-
 To further redo the experiment of our work our please check [here](experiment/README.md).
 
 ## CRDT Operations
 
-Different implementations of the same type of CRDT offer the same operations for users. We use **[type][op]** to name our CRDT operations. The operations name contains of an implementation type prefix and an operation type suffix. For example, the name of operation of RWF-RPQ to add one element is **rwfzadd**, where **rwf** is the implementation type prefix and **zadd** is the operation type suffix.
+Different implementations of the same type of CRDT offer the same operations for users. We use **[type][op]** to name our CRDT operations. The operations name contains of an implementation type prefix and an operation type suffix. For example, the name of operation of RWF-PQ to add one element is **rwfzadd**, where **rwf** is the implementation type prefix and **zadd** is the operation type suffix.
 
-### RPQ operations
+### PQ operations
 
-The **[type]** prefix of different RPQs are:
+The **[type]** prefix of different PQs are:
 
-* Add-Win RPQ : **o**
-* Remove-Win RPQ : **r**
-* RWF-RPQ : **rwf**
+* Add-Win PQ : **o**
+* Remove-Win PQ : **r**
+* RWF-PQ : **rwf**
 
 The operations of RPQs are:
 
@@ -99,6 +55,19 @@ The operations of RPQs are:
 * **[type]zrem Q E** : Remove element *E* from the priority queue *Q*.
 * **[type]zscore Q E** : Read the value of element *E* from the priority queue *Q*.
 * **[type]zmax Q** : Read the element with the largest value in the priority queue *Q*. Returns the element and its value.
+
+### Set operations
+
+The **[type]** prefix of different Sets are:
+
+* RWF-Set : **rwf**
+
+The operations of Sets are:
+
+* **[type]sadd Q E** : Add a new element *E* into the Set *S*.
+* **[type]srem Q E** : Remove element *E* from the Set *S*.
+* **[type]scontains Q E** : Read the existence of element *E* from the Set *S*.
+* **[type]size Q** : Returns the number of the element in the Set *S*.
 
 ### List operations
 

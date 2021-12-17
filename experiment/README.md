@@ -4,8 +4,6 @@ Here are the tests and the experiments we do on our CRDT implementations. There 
 
 * *redis_test* : The testing bash scripts and server configuration files. Also used in the experiment.
   * **.sh* : Bash scripts for starting and testing on local machine.
-  * *test.py* : Local test we do to test the correctness of our CRDT implementations.
-  * *connection.py* : Used for experiments using virtual machines. Construct the server part of experiment framework, close it and clean it when the experiment is finished. It use ssh to control the server VMs to start their Redis instances, construct replication among them, and add networking delay between them. When the experiment is finished, close all the server and remove their .rdb and .log files.
 * *bench* : The experiment code. Constructs the experiment, generates and runs operations, get logs and results.
   * *exp_env.h* : Construct the experiment environment. Start servers, construct replication, setup delays. Shutdown and cleanup when this round finishes.
   * *exp_runner.h* : Run the exp. Start client threads, calls the generator and periodically read from server to log.
@@ -18,8 +16,6 @@ Here are the tests and the experiments we do on our CRDT implementations. There 
     * rdt_exp : experiment settings and experiment instance generation
     * rdt_log : log the CRDT execution and read result, write result to *result* folder
   * *rpq* and *list* : Actual RPQ and List experiment folder. They extend the base classes in *util.h*, and implement the specific CRDT experiment logics.
-* *result* : The results and the data analysis.
-  * **.py* : The python scripts to compute the statistics of the result data and draw result figures.
 
 ## Experiment Framework
 
@@ -39,15 +35,3 @@ To perform our CRDT experiments, follow the instructions below. First you need t
 cd bench
 make run
 ```
-
-You need to enter the sudo password for using tc to control message delay.
-
-After it finishes you will get the data in the *result* folder.
-You may then draw figures by (python 3.6 required):
-
-```bash
-cd ../result
-python result.py
-```
-
-For more details of our implementation and experiment, please read the *Performance measurements* section of [the technical report](https://arxiv.org/abs/1905.01403) and [the article](../document/add-win-crpq.pdf).

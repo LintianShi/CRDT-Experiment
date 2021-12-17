@@ -76,7 +76,7 @@ class set_size_cmd : public set_cmd
 {    
 public:
     set_size_cmd(const string &type, int round)
-         : set_cmd(type, CONTAINS, round) {}
+         : set_cmd(type, SIZE, round) {}
 };
 
 #endif  // BENCH_SET_CMD_H

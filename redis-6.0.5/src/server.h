@@ -2443,6 +2443,11 @@ void rwfsremCommand(client *c);
 void rwfscontainsCommand(client *c);
 void rwfssizeCommand(client *c);
 
+void osaddCommand(client *c);
+void osremCommand(client *c);
+void oscontainsCommand(client *c);
+void ossizeCommand(client *c);
+
 void rlinsertCommand(client* c);
 void rlupdateCommand(client* c);
 void rlremCommand(client* c);

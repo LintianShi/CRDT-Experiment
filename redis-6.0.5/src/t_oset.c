@@ -8,17 +8,10 @@
 #include "server.h"
 
 #ifdef CRDT_OVERHEAD
-/*
-#define SUF_OZETOTAL "ozetotal"
-#define SUF_ASET "ozaset"
-#define SUF_RSET "ozrset"
-static redisDb *cur_db = NULL;
-static sds cur_tname = NULL;
-*/
 
-#define OZE_SIZE (sizeof(oze) + 2 * sizeof(list))
-#define OZE_ASE_SIZE (sizeof(oz_ase) + sizeof(lc) + sizeof(listNode))
-#define OZE_RSE_SIZE (sizeof(lc) + sizeof(listNode))
+#define OSE_SIZE (sizeof(ose) + 2 * sizeof(list))
+#define OSE_ASE_SIZE (sizeof(os_ase) + sizeof(lc) + sizeof(listNode))
+#define OSE_RSE_SIZE (sizeof(lc) + sizeof(listNode))
 
 #endif
 
@@ -50,7 +43,7 @@ ose *oseNew()
     return e;
 }
 
-os_ase *asetGet(ose *e, lc *t, int delete)
+os_ase *o_asetGet(ose *e, lc *t, int delete)
 {
     listNode *ln;
     listIter li;
@@ -70,7 +63,7 @@ os_ase *asetGet(ose *e, lc *t, int delete)
     return NULL;
 }
 
-lc *rsetGet(ose *e, lc *t, int delete)
+lc *o_rsetGet(ose *e, lc *t, int delete)
 {
     listNode *ln;
     listIter li;
@@ -91,7 +84,7 @@ lc *rsetGet(ose *e, lc *t, int delete)
 }
 
 // 下面函数对自己参数 t 没有所有权
-os_ase *add_ase(ose *e, lc *t)
+os_ase *o_add_ase(ose *e, lc *t)
 {
     os_ase *a = zmalloc(sizeof(os_ase));
     a->t = lc_dup(t);
@@ -101,9 +94,9 @@ os_ase *add_ase(ose *e, lc *t)
 
 int update_exist(ose *e, lc *t, int v)
 {
-    if (rsetGet(e, t, 0) != NULL) return 0;
-    os_ase *a = asetGet(e, t, 0);
-    if (a == NULL) a = add_ase(e, t);
+    if (o_rsetGet(e, t, 0) != NULL) return 0;
+    os_ase *a = o_asetGet(e, t, 0);
+    if (a == NULL) a = o_add_ase(e, t);
     a->value = v;
     if (e->exist == NULL || lc_cmp_as_tag(e->exist->t, a->t) < 0)
     {
@@ -114,14 +107,14 @@ int update_exist(ose *e, lc *t, int v)
 }
 
 // 没有整理
-void remove_tag(ose *e, lc *t)
+void set_remove_tag(ose *e, lc *t)
 {
-    if (rsetGet(e, t, 0) != NULL) return;
+    if (o_rsetGet(e, t, 0) != NULL) return;
     lc *nt = lc_dup(t);
     listAddNodeTail(e->rset, nt);
 
     os_ase *a;
-    if ((a = asetGet(e, t, 1)) != NULL)
+    if ((a = o_asetGet(e, t, 1)) != NULL)
     {
         if (e->exist == a) e->exist = NULL;
         zfree(a->t);
@@ -129,7 +122,7 @@ void remove_tag(ose *e, lc *t)
     }
 }
 
-void resort(ose *e)
+void set_resort(ose *e)
 {
     if (e->exist != NULL) return;
 
@@ -147,23 +140,6 @@ void resort(ose *e)
 #define GET_OSE(arg_t, create)                                                     \
     (ose *)rehHTGet(c->db, c->arg_t[1], ORI_SET_TABLE_SUFFIX, c->arg_t[2], create, \
                     (rehNew_func_t)oseNew)
-
-robj *getZsetOrCreate(redisDb *db, robj *zset_name, robj *element_name)
-{
-    robj *zobj = lookupKeyWrite(db, zset_name);
-    if (zobj == NULL)
-    {
-        if (server.zset_max_ziplist_entries == 0
-            || server.zset_max_ziplist_value < sdslen(element_name->ptr))
-        { zobj = createZsetObject(); }
-        else
-        {
-            zobj = createZsetZiplistObject();
-        }
-        dbAdd(db, zset_name, zobj);
-    }
-    return zobj;
-}
 
 void osaddCommand(client *c)
 {
@@ -198,7 +174,7 @@ void osaddCommand(client *c)
 }
 
 
-void ozremCommand(client *c)
+void osremCommand(client *c)
 {
     CRDT_BEGIN
         CRDT_PREPARE
@@ -223,12 +199,12 @@ void ozremCommand(client *c)
             for (int i = 3; i < c->rargc; i++)
             {
                 lc *t = sdsToLc(c->rargv[i]->ptr);
-                remove_tag(e, t);
+                set_remove_tag(e, t);
                 lc_delete(t);
             }
             if (e->exist == NULL)
             {
-                resort(e);
+                set_resort(e);
                 robj *zset = getZsetOrCreate(c->db, c->rargv[1], c->rargv[2]);
                 if (LOOKUP(e))
                 {

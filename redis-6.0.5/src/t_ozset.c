@@ -64,38 +64,6 @@ oze *ozeNew()
     return e;
 }
 
-/*
-#ifdef CRDT_OVERHEAD
-
-robj *_get_ovhd_count(redisDb *db, sds tname, const char *suf)
-{
-    robj *logname = createObject(OBJ_STRING, sdscat(sdsdup(tname), suf));
-    robj *o;
-    if ((o = lookupKeyWrite(db, logname)) == NULL)
-    {
-        o = createObject(OBJ_STRING, 0);
-        o->encoding = OBJ_ENCODING_INT;
-        dbAdd(db, logname, o);
-    }
-    decrRefCount(logname);
-    return o;
-}
-
-void inc_ovhd_count(redisDb *db, sds tname, const char *suf, long i)
-{
-    robj *o = _get_ovhd_count(db, tname, suf);
-    o->ptr = (void *) ((long) o->ptr + i);
-}
-
-long get_ovhd_count(redisDb *db, sds tname, const char *suf)
-{
-    robj *o = _get_ovhd_count(db, tname, suf);
-    return (long) (o->ptr);
-}
-
-#endif
-*/
-
 oz_ase *asetGet(oze *e, lc *t, int delete)
 {
     listNode *ln;
@@ -109,10 +77,6 @@ oz_ase *asetGet(oze *e, lc *t, int delete)
             if (delete)
             {
                 listDelNode(e->aset, ln);
-#ifdef CRDT_OVERHEAD
-                // inc_ovhd_count(cur_db, cur_tname, SUF_ASET, -1);
-                ovhd_inc(-OZE_ASE_SIZE);
-#endif
             }
             return a;
         }

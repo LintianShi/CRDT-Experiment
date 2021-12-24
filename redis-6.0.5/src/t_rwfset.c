@@ -89,6 +89,14 @@ void rwfsremCommand(client *c)
 
 void rwfscontainsCommand(client *c)
 {
+    // CHECK_ARGC(3);
+    // rwfse *e = GET_RWFSE(argv, 0);
+    // if (e != NULL) {
+    //     addReplyBool(c, 1);
+    // } else {
+    //     addReplyBool(c, 0);
+    // }
+
     robj *key = c->argv[1];
     robj *zobj;
     double score;
@@ -97,7 +105,7 @@ void rwfscontainsCommand(client *c)
         || checkType(c, zobj, OBJ_ZSET))
         return;
 
-    if (zsetScore(zobj, c->argv[2]->ptr, &score) == C_ERR) { addReply(c, shared.null[c->resp]); }
+    if (zsetScore(zobj, c->argv[2]->ptr, &score) == C_ERR) { addReplyBool(c, 0); }
     else
     {
         addReplyBool(c, 1);

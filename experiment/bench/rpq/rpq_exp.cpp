@@ -9,7 +9,7 @@
 
 exp_setting::default_setting rpq_exp::rpq_setting{
     .name = "Rpq",
-    .total_sec = 15,
+    .total_sec = 14,
     .total_servers = 3,
     .op_per_sec = 1
 };

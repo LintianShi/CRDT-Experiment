@@ -67,7 +67,7 @@ public:
 
     void run()
     {
-        string ips[3] = {"172.24.81.131", "172.24.81.133", "172.24.81.135"};
+        string ips[3] = {"172.24.81.136", "172.24.81.133", "172.24.81.135"};
         // vector<redis_client> clients;
         for (int i = 0; i < env.get_cluster_num(); i++) {
             for (int j = 0; j < env.get_replica_nums()[i]; j++) {

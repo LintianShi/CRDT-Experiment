@@ -2448,6 +2448,11 @@ void osremCommand(client *c);
 void oscontainsCommand(client *c);
 void ossizeCommand(client *c);
 
+void rsaddCommand(client *c);
+void rsremCommand(client *c);
+void rscontainsCommand(client *c);
+void rssizeCommand(client *c);
+
 void rlinsertCommand(client* c);
 void rlupdateCommand(client* c);
 void rlremCommand(client* c);

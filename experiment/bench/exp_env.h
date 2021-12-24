@@ -35,7 +35,7 @@ private:
     int total_server;
     string exec_path;
     vector<ssh_session> sessions;
-    string available_hosts[3] = {"172.24.81.133", "172.24.81.131", "172.24.81.135"};
+    string available_hosts[3] = {"172.24.81.133", "172.24.81.136", "172.24.81.135"};
     string available_ports[5] = {"6379", "6380", "6381", "6382", "6383"};
     static void shell_exec(const char* cmd, bool sudo)
     {

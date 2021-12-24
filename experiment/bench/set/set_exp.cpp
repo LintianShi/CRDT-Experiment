@@ -9,7 +9,7 @@
 
 exp_setting::default_setting set_exp::set_setting{
     .name = "Set",
-    .total_sec = 15,
+    .total_sec = 14,
     .total_servers = 3,
     .op_per_sec = 1
 };

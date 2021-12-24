@@ -38,6 +38,7 @@ ose *oseNew()
 {
     ose *e = zmalloc(sizeof(ose));
     e->current = 0;
+    e->exist = NULL;
     e->aset = listCreate();
     e->rset = listCreate();
     return e;

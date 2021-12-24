@@ -19,7 +19,8 @@ public:
     set_exp() : rdt_exp(set_setting, "set")
     {
         // ! RPQ types: "o", "r", "rwf"
-        add_type("rwf");
+        //add_type("rwf");
+        add_type("o");
         add_pattern("default");
     }
 };

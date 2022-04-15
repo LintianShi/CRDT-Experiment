@@ -35,7 +35,7 @@ private:
     int total_server;
     string exec_path;
     vector<ssh_session> sessions;
-    string available_hosts[3] = {"172.24.81.133", "172.24.81.136", "172.24.81.135"};
+    string available_hosts[3] = {"172.24.81.132", "172.24.81.136", "172.24.81.137"};
     string available_ports[5] = {"6379", "6380", "6381", "6382", "6383"};
     static void shell_exec(const char* cmd, bool sudo)
     {
@@ -170,15 +170,19 @@ private:
         repl_cmd.push_back(string("REPLICATE"));
         repl_cmd.push_back(std::to_string(total_server));
         repl_cmd.push_back(string("0"));
-        repl_cmd.push_back(string("exp_local"));
+        repl_cmd.push_back(string("AUTOMAT"));
+        for (int i = 0; i < cluster_num; i++) {
+            for (int j = 0; j < replica_nums[i]; j++) {
+                repl_cmd.push_back(available_hosts[i]);
+                repl_cmd.push_back(available_ports[j]);
+            }
+        }
         int host_id = 0;
         for (int i = 0; i < cluster_num; i++) {
             for (int j = 0; j < replica_nums[i]; j++) {
                 repl_cmd[1] = available_ports[j];
                 ssh_exec(sessions[i], generate_repl_cmd(repl_cmd));
                 repl_cmd[4] = to_string(host_id + 1);
-                repl_cmd.push_back(available_hosts[i]);
-                repl_cmd.push_back(available_ports[j]);
                 host_id++;
             }
         }
@@ -245,7 +249,7 @@ public:
         }
         va_end(argptr);
 
-        exec_path = "cd /home/shilintian/crdt-redis-experiment/experiment/redis_test/;";
+        exec_path = "cd /home/shilintian/Redis-CRDT-Experiment/experiment/redis_test/;";
         if (connect_all() != 0) {
             exit(-1);
         }

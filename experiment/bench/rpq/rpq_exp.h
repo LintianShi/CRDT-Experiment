@@ -19,8 +19,16 @@ public:
     rpq_exp() : rdt_exp(rpq_setting, "rpq")
     {
         // ! RPQ types: "o", "r", "rwf"
+        // add_type("rwf");
         add_type("r");
-        // add_type("o");
+        add_pattern("default");
+    }
+
+    rpq_exp(const string& type) : rdt_exp(rpq_setting, "rpq")
+    {
+        // ! RPQ types: "o", "r", "rwf"
+        // add_type("rwf");
+        add_type(type.c_str());
         add_pattern("default");
     }
 };
